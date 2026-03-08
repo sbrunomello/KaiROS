@@ -22,6 +22,9 @@ class RuntimeState:
     latest_frame: Optional[object] = None
     latest_mask: Optional[object] = None
     last_seen_ts: float = 0.0
+    vision_running: bool = False
+    vision_last_error: Optional[str] = None
+    vision_fps: float = 0.0
 
 
 class SharedState:
@@ -59,6 +62,18 @@ class SharedState:
     def set_active_camera_index(self, camera_index: Optional[int]):
         with self._lock:
             self.runtime.active_camera_index = camera_index
+
+    def set_vision_running(self, running: bool):
+        with self._lock:
+            self.runtime.vision_running = running
+
+    def set_vision_error(self, error: Optional[str]):
+        with self._lock:
+            self.runtime.vision_last_error = error
+
+    def set_vision_fps(self, fps: float):
+        with self._lock:
+            self.runtime.vision_fps = fps
 
     def get_runtime_snapshot(self) -> RuntimeState:
         with self._lock:
