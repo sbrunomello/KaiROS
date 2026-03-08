@@ -1,0 +1,15 @@
+[Unit]
+Description=KaiROS LLM Web Chat
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/kairos
+EnvironmentFile=/opt/kairos/llm/deploy/.env
+ExecStart=/opt/kairos/.venv/bin/uvicorn llm.app.main:app --host 0.0.0.0 --port ${LLM_PORT}
+Restart=always
+RestartSec=3
+User=orangepi
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Configurações | KaiROS LLM{% endblock %}
+{% block content %}
+<div class="settings-wrap">
+  <h1>Configurações</h1>
+  <a href="/">← Voltar ao chat</a>
+  <form id="settings-form">
+    <label>OpenRouter API Key <input type="password" id="openrouter_api_key" /></label>
+    <label>Modelo (input livre) <input type="text" id="model_name" placeholder="deepseek/deepseek-chat" /></label>
+    <label>Temperatura <input type="number" step="0.1" min="0" max="2" id="temperature" /></label>
+    <label>Personalidade / System Prompt <textarea id="system_prompt" rows="6"></textarea></label>
+    <label>Nome da assistente <input type="text" id="assistant_name" /></label>
+    <label>HTTP-Referer opcional <input type="text" id="http_referer" /></label>
+    <label>X-Title opcional <input type="text" id="x_title" /></label>
+    <button type="submit">Salvar</button>
+  </form>
+  <p id="settings-status"></p>
+</div>
+<script src="/static/js/settings.js"></script>
+{% endblock %}
