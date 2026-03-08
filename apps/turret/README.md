@@ -22,9 +22,11 @@ A turret V0 mantém a lógica validada em hardware real:
 ./scripts/run_turret.sh
 ```
 
-## Escolha de cor
+## Escolha de cor e câmera
 
-Edite `tracking.color` no `config.yaml` ou use CLI `--color`.
+- O target de tracking pode ser alterado em tempo real pela web (`Target`).
+- O device de vídeo também pode ser trocado em tempo real pela web (`Device`: 0, 1, 2...).
+- Configuração inicial continua vindo de `tracking.color` e `camera.index` no `config.yaml`.
 
 Presets disponíveis: `blue`, `green`, `red`, `yellow`.
 
@@ -38,6 +40,8 @@ Presets disponíveis: `blue`, `green`, `red`, `yellow`.
 - `POST /api/mode/manual`
 - `POST /api/servo/center`
 - `POST /api/servo/angle` com JSON `{ "angle": 90 }`
+- `POST /api/camera/index` com JSON `{ "index": 1 }`
+- `POST /api/tracking/color` com JSON `{ "color": "red" }`
 
 ## Troubleshooting
 

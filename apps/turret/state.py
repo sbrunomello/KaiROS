@@ -16,6 +16,8 @@ class RuntimeState:
     target_angle: float = 90.0
     servo_enabled: bool = True
     color_name: str = "green"
+    desired_camera_index: int = 0
+    active_camera_index: Optional[int] = None
     resolution: str = "0x0"
     latest_frame: Optional[object] = None
     latest_mask: Optional[object] = None
@@ -36,9 +38,31 @@ class SharedState:
             self.runtime.latest_mask = mask
             self.runtime.resolution = resolution
 
+    def clear_visuals(self, resolution: str = "0x0"):
+        with self._lock:
+            self.runtime.latest_frame = None
+            self.runtime.latest_mask = None
+            self.runtime.resolution = resolution
+
     def mark_seen(self):
         with self._lock:
             self.runtime.last_seen_ts = time.time()
+
+    def set_color(self, color_name: str):
+        with self._lock:
+            self.runtime.color_name = color_name
+
+    def set_desired_camera_index(self, camera_index: int):
+        with self._lock:
+            self.runtime.desired_camera_index = camera_index
+
+    def set_active_camera_index(self, camera_index: Optional[int]):
+        with self._lock:
+            self.runtime.active_camera_index = camera_index
+
+    def get_runtime_snapshot(self) -> RuntimeState:
+        with self._lock:
+            return RuntimeState(**self.runtime.__dict__)
 
     def get_jpeg_frame(self):
         with self._lock:

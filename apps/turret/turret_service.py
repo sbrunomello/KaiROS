@@ -79,6 +79,8 @@ def run_service(cfg: dict):
     state = SharedState(jpeg_quality=cfg["web"]["jpeg_quality"], show_mask=cfg["tracking"]["show_mask"])
     state.runtime.servo_enabled = cfg["servo"]["enabled"]
     state.runtime.color_name = cfg["tracking"]["color"]
+    state.runtime.desired_camera_index = int(cfg["camera"]["index"])
+    state.runtime.active_camera_index = None
     state.runtime.target_angle = float(cfg["servo"]["center_angle"])
 
     servo_backend = FileServoBackend(
