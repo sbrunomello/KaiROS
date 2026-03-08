@@ -23,7 +23,20 @@ Aplicação web de chat estilo ChatGPT, **isolada em `./llm`**, com FastAPI + Ji
 - `deploy/`: systemd + install
 - `tests/`: suíte automatizada
 
-## Instalação local
+---
+
+## Pré-requisitos
+
+- Python 3.10+
+- `python3-venv`
+- acesso de rede para chamar provider LLM (quando usar OpenRouter)
+
+---
+
+## Como rodar localmente (desenvolvimento)
+
+Na raiz do repositório:
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -31,34 +44,50 @@ pip install -U pip
 pip install -r llm/requirements.txt
 ```
 
-## Executar
+Suba a aplicação:
+
 ```bash
 uvicorn llm.app.main:app --host 0.0.0.0 --port 8091
 ```
+
 Acesse:
 - Local: `http://localhost:8091`
-- Rede local: `http://<IP_DO_ORANGE_PI>:8091`
+- Rede local: `http://<IP_DA_MAQUINA>:8091`
+
+---
 
 ## Configuração OpenRouter
+
 1. Abra `http://<host>:8091/settings`
 2. Preencha API key
 3. Informe o modelo em texto livre (ex.: `deepseek/deepseek-chat`)
 4. Salve
 
-## Serviço no boot (systemd)
+---
+
+## Rodar com systemd (produção)
+
 Arquivos em `llm/deploy/`:
 - `env.example`
 - `llm.service`
 - `install.sh`
 
 Instalação automatizada:
+
 ```bash
 bash llm/deploy/install.sh
 ```
 
+Após instalação:
+- ajuste `llm/deploy/.env` conforme necessário
+- valide com `systemctl status llm.service`
+
+---
+
 ## Testes
+
 ```bash
-pytest llm/tests -q
+.venv/bin/python -m pytest -q llm/tests
 ```
 
 ## Limitações atuais
