@@ -8,9 +8,10 @@ import threading
 import yaml
 
 from .servo_backend import FileServoBackend
+from .servo_service import ServoService
 from .state import SharedState
 from .tracking import COLOR_PRESETS
-from .video import run_tracking_loop
+from .vision_service import VisionService
 from .web import build_app
 
 
@@ -91,9 +92,12 @@ def run_service(cfg: dict):
         write_interval_ms=cfg["servo"]["write_interval_ms"],
         min_angle_step=cfg["servo"]["min_angle_step"],
     )
+    servo_service = ServoService(servo_backend)
+    vision_service = VisionService(cfg, state, servo_service)
 
-    tracking_thread = threading.Thread(target=run_tracking_loop, args=(cfg, state, servo_backend), daemon=True)
+    # Thread dedicada para visão: permite escalar percepção sem acoplar na camada web.
+    tracking_thread = threading.Thread(target=vision_service.run, daemon=True)
     tracking_thread.start()
 
-    app = build_app(cfg, state, servo_backend)
+    app = build_app(cfg, state, servo_service)
     app.run(host=cfg["web"]["host"], port=cfg["web"]["port"], threaded=True)

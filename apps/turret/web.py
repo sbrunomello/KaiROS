@@ -25,7 +25,7 @@ HTML = """
   </style>
 </head>
 <body>
-  <h1>KaiROS Turret V0</h1>
+  <h1>KaiROS Turret V0 - Modular</h1>
   <p>
     mode=<code id="mode"></code>
     color=<code id="color"></code>
@@ -33,6 +33,8 @@ HTML = """
     servo=<code id="servo"></code>
     angle=<code id="angle"></code>
     res=<code id="res"></code>
+    vision=<code id="visionStatus"></code>
+    vision_fps=<code id="visionFps"></code>
   </p>
   <div class="row">
     <div class="card"><h3>Video</h3><img src="/video_feed" /></div>
@@ -119,6 +121,8 @@ HTML = """
       servo.textContent = d.servo_enabled;
       angle.textContent = d.target_angle.toFixed(1);
       res.textContent = d.resolution;
+      visionStatus.textContent = d.modules.vision.running ? "up" : `down (${d.modules.vision.last_error || "unknown"})`;
+      visionFps.textContent = d.modules.vision.fps.toFixed(2);
 
       if(document.activeElement !== cameraIndexInput){
         cameraIndexInput.value = d.desired_camera_index;
@@ -153,7 +157,7 @@ def mjpeg_generator(get_frame, sleep_ms: int):
         time.sleep(sleep_ms / 1000.0)
 
 
-def build_app(cfg: dict, state, servo_backend):
+def build_app(cfg: dict, state, servo_service):
     app = Flask(__name__)
 
     @app.get("/")
@@ -182,6 +186,16 @@ def build_app(cfg: dict, state, servo_backend):
             last_seen_ts=runtime.last_seen_ts,
             desired_camera_index=runtime.desired_camera_index,
             active_camera_index=runtime.active_camera_index,
+            modules={
+                "vision": {
+                    "running": runtime.vision_running,
+                    "last_error": runtime.vision_last_error,
+                    "fps": runtime.vision_fps,
+                },
+                "servo": {
+                    "enabled": runtime.servo_enabled,
+                },
+            },
         )
 
     @app.post("/api/mode/auto")
@@ -197,7 +211,7 @@ def build_app(cfg: dict, state, servo_backend):
     @app.post("/api/servo/center")
     def center_servo():
         angle = cfg["servo"]["center_angle"]
-        state.runtime.target_angle = servo_backend.set_angle(angle, force=True)
+        state.runtime.target_angle = servo_service.set_angle(angle, force=True)
         return jsonify(ok=True, target_angle=state.runtime.target_angle)
 
     @app.post("/api/servo/angle")
@@ -214,7 +228,7 @@ def build_app(cfg: dict, state, servo_backend):
         if state.runtime.mode != "manual":
             return jsonify(ok=False, error="mode_must_be_manual"), 409
 
-        state.runtime.target_angle = servo_backend.set_angle(angle, force=True)
+        state.runtime.target_angle = servo_service.set_angle(angle, force=True)
         return jsonify(ok=True, target_angle=state.runtime.target_angle)
 
     @app.post("/api/camera/index")
