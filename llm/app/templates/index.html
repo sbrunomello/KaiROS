@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Chat | KaiROS LLM{% endblock %}
+{% block content %}
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <button id="new-chat-btn">+ Novo chat</button>
+      <a href="/settings">Configurações</a>
+    </div>
+    <ul id="chat-list"></ul>
+  </aside>
+  <main class="chat-main">
+    <div id="messages" class="messages"></div>
+    <form id="chat-form" class="chat-input">
+      <textarea id="message-input" placeholder="Digite sua mensagem..." required></textarea>
+      <button type="submit">Enviar</button>
+    </form>
+    <p id="status" class="status"></p>
+  </main>
+</div>
+<script src="/static/js/app.js"></script>
+{% endblock %}
