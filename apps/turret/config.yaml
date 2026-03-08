@@ -1,0 +1,33 @@
+camera:
+  index: 0
+  width: 424
+  height: 240
+  fps: 15
+
+tracking:
+  color: green
+  area_min: 350
+  kp: 18.0
+  deadband: 0.10
+  show_mask: true
+  scan_on_target_loss: false
+  scan_after_ms: 1500
+
+servo:
+  enabled: true
+  center_angle: 90
+  min_angle: 60
+  max_angle: 120
+  write_interval_ms: 80
+  min_angle_step: 1.0
+  target_file: /tmp/kairos_servo_target
+
+web:
+  host: 0.0.0.0
+  port: 8080
+  jpeg_quality: 55
+  stream_sleep_ms: 50
+
+debug:
+  frame_skip: 0
+  verbose: false

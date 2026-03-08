@@ -1,0 +1,60 @@
+"""Estado compartilhado entre threads de captura/tracking/web."""
+
+from __future__ import annotations
+
+import threading
+import time
+from dataclasses import dataclass
+from typing import Optional
+
+import cv2
+
+
+@dataclass
+class RuntimeState:
+    mode: str = "auto"
+    target_angle: float = 90.0
+    servo_enabled: bool = True
+    color_name: str = "green"
+    resolution: str = "0x0"
+    latest_frame: Optional[object] = None
+    latest_mask: Optional[object] = None
+    last_seen_ts: float = 0.0
+
+
+class SharedState:
+    def __init__(self, jpeg_quality: int, show_mask: bool):
+        self._lock = threading.Lock()
+        self.jpeg_quality = jpeg_quality
+        self.show_mask = show_mask
+        self.running = True
+        self.runtime = RuntimeState()
+
+    def update_visuals(self, frame, mask, resolution: str):
+        with self._lock:
+            self.runtime.latest_frame = frame
+            self.runtime.latest_mask = mask
+            self.runtime.resolution = resolution
+
+    def mark_seen(self):
+        with self._lock:
+            self.runtime.last_seen_ts = time.time()
+
+    def get_jpeg_frame(self):
+        with self._lock:
+            frame = self.runtime.latest_frame
+        if frame is None:
+            return None
+        ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), self.jpeg_quality])
+        return buf.tobytes() if ok else None
+
+    def get_jpeg_mask(self):
+        if not self.show_mask:
+            return None
+        with self._lock:
+            mask = self.runtime.latest_mask
+        if mask is None:
+            return None
+        mask_bgr = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+        ok, buf = cv2.imencode(".jpg", mask_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), self.jpeg_quality])
+        return buf.tobytes() if ok else None
