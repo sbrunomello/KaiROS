@@ -110,6 +110,7 @@ async function saveRuntime(){
 async function applyCamera(){
   const r = await jpost('/api/camera/select', { camera_index: Number(cameraIndex.value) });
   toast(r.ok ? 'Câmera atualizada' : 'Falha ao atualizar câmera', !r.ok);
+  if (r.ok) await refreshDashboard();
 }
 
 async function applyMode(){
@@ -117,32 +118,45 @@ async function applyMode(){
   const r = await fetch(mode === 'auto' ? '/api/mode/auto' : '/api/mode/manual', { method:'POST' });
   const d = await r.json();
   toast(d.ok ? 'Modo atualizado' : 'Falha ao atualizar modo', !d.ok);
+  if (d.ok) await refreshDashboard();
 }
 
 async function centerServo(){
   const d = await jpost('/api/servo/center', {});
   toast(d.ok ? 'Servo centralizado' : 'Falha ao centralizar', !d.ok);
+  if (d.ok) await refreshDashboard();
 }
 
 async function applyManualAngle(){
   const d = await jpost('/api/servo/angle', { angle: Number(manualAngle.value) });
   toast(d.ok ? 'Ângulo enviado' : `Falha: ${d.error || 'erro'}`, !d.ok);
+  if (d.ok) await refreshDashboard();
 }
 
-async function refreshMetrics(){
-  const m = await jget('/api/vision/metrics');
-  const s = await jget('/api/system/state');
-  frameFps.textContent=(m.frame_fps||0).toFixed(2); infAvg.textContent=(m.inference_avg_ms||0).toFixed(2); infFps.textContent=(m.inference_fps||0).toFixed(2);
-  targetNow.textContent=m.current_target_class||'-'; targetStatus.textContent=m.target_found?'encontrado':'perdido';
-  conf.textContent=(m.class_confidence||0).toFixed(2); area.textContent=(m.mask_area||0).toFixed(1);
-  activeCam.textContent = s.active_camera_index === null ? '-' : String(s.active_camera_index);
-  activeRecognition.textContent = s.recognition_mode;
-  targetWarn.textContent=m.target_found ? '' : 'target not found';
+let dashboardRefreshInFlight = false;
+
+async function refreshDashboard(){
+  // Evita flood de requisições concorrentes que podem travar o frontend em máquinas lentas.
+  if (dashboardRefreshInFlight || document.hidden) return;
+  dashboardRefreshInFlight = true;
+  try {
+    const d = await jget('/api/dashboard');
+    const m = d.metrics;
+    const s = d.system;
+    frameFps.textContent=(m.frame_fps||0).toFixed(2); infAvg.textContent=(m.inference_avg_ms||0).toFixed(2); infFps.textContent=(m.inference_fps||0).toFixed(2);
+    targetNow.textContent=m.current_target_class||'-'; targetStatus.textContent=m.target_found?'encontrado':'perdido';
+    conf.textContent=(m.class_confidence||0).toFixed(2); area.textContent=(m.mask_area||0).toFixed(1);
+    activeCam.textContent = s.active_camera_index === null ? '-' : String(s.active_camera_index);
+    activeRecognition.textContent = s.recognition_mode;
+    targetWarn.textContent=m.target_found ? '' : 'target not found';
+  } finally {
+    dashboardRefreshInFlight = false;
+  }
 }
 
 recognitionMode.addEventListener('change', syncVisibility);
-setInterval(refreshMetrics, 700);
-(async()=>{ await loadCapabilities(); await loadRuntime(); await loadSystem(); await refreshMetrics(); })();
+setInterval(refreshDashboard, 1500);
+(async()=>{ await loadCapabilities(); await loadRuntime(); await loadSystem(); await refreshDashboard(); })();
 </script>
 </body></html>
 """
@@ -242,6 +256,23 @@ def build_app(cfg: dict, state, servo_service, classes, recognition_modes=None, 
     @app.get("/api/vision/metrics")
     def get_metrics():
         return jsonify(ok=True, **state.metrics.snapshot())
+
+    @app.get("/api/dashboard")
+    def dashboard_snapshot():
+        """Retorna snapshot único para UI e reduz chamadas concorrentes no frontend."""
+        runtime = state.get_runtime_snapshot()
+        metrics = state.metrics.snapshot()
+        return jsonify(
+            ok=True,
+            metrics=metrics,
+            system={
+                "mode": runtime.mode,
+                "target_angle": runtime.target_angle,
+                "desired_camera_index": runtime.desired_camera_index,
+                "active_camera_index": runtime.active_camera_index,
+                "recognition_mode": runtime.recognition_mode,
+            },
+        )
 
     @app.post("/api/mode/auto")
     def set_auto():
