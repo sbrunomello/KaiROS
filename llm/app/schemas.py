@@ -48,7 +48,7 @@ class ChatResponseOut(BaseModel):
 class SettingsIn(BaseModel):
     openrouter_api_key: str = ""
     model_name: str = "openrouter/auto"
-    default_image_model: str = "sourceful/riverflow-v2-fast"
+    default_image_model: str = "bytedance-seed/seedream-4.5"
     default_video_analysis_model: str = "google/gemini-2.5-pro"
     default_video_generation_model: str = ""
     temperature: float = Field(default=0.7, ge=0, le=2)
@@ -88,13 +88,16 @@ class ModelCapabilitiesOut(BaseModel):
 class ImageGenerationIn(BaseModel):
     prompt: str = Field(min_length=1, max_length=4000)
     model: str = ""
+    mode: str = "text_to_image"
 
 
 class ImageGenerationOut(BaseModel):
     status: str
     model: str
     prompt: str
+    mode: str
     image_url: str
+    input_image_url: str = ""
     file_path: str
     mime_type: str
     size_bytes: int

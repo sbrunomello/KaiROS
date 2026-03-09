@@ -60,7 +60,7 @@ class ModelCatalogService:
         free_models = [model["id"] for model in image_models_free if model.get("id")]
         if free_models:
             return free_models[0]
-        return "sourceful/riverflow-v2-fast"
+        return "bytedance-seed/seedream-4.5"
 
     def _is_free_model(self, model_id: str) -> bool:
         return model_id.endswith(":free")
