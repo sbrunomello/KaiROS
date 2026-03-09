@@ -71,6 +71,8 @@ class ModelInfo(BaseModel):
     input_modalities: list[str] = []
     output_modalities: list[str] = []
     is_free: bool = False
+    supports_image_generation: bool = False
+    supports_video_input: bool = False
 
 
 class ModelCapabilitiesOut(BaseModel):

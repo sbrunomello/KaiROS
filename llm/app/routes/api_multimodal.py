@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -14,6 +13,7 @@ from ..schemas import (
     VideoAnalysisOut,
 )
 from ..services.multimodal_service import HistoryService, ImageGenerationService, ModelCatalogService, VideoAnalysisService
+from ..services.openrouter_client import OpenRouterHTTPError
 from ..services.settings_service import SettingsService
 
 router = APIRouter(prefix="/api", tags=["multimodal"])
@@ -42,21 +42,21 @@ def generate_image(payload: ImageGenerationIn, username: str = Depends(get_usern
         raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
 
     caps = ModelCatalogService().get_capabilities()
-    selected_model = (payload.model or "").strip() or caps.get("default_image_model") or settings.default_image_model
+    selected_model = (payload.model or "").strip()
+    if not selected_model:
+        selected_model = caps.get("default_image_model") or ""
 
-    # Segurança: nunca auto-selecionar modelo pago para geração de imagem.
-    # Se o usuário escolher manualmente um modelo pago, a seleção explícita é respeitada.
-    if not (payload.model or "").strip() and not selected_model.endswith(":free"):
-        selected_model = caps.get("default_image_model") or settings.default_image_model
+    if not selected_model:
+        raise HTTPException(status_code=400, detail="Nenhum modelo gratuito de imagem está disponível no catálogo atual.")
 
     model_ids = {m["id"] for m in caps["image_models"]}
     if selected_model not in model_ids:
-        raise HTTPException(status_code=400, detail="Modelo incompatível para geração de imagem")
+        raise HTTPException(status_code=400, detail="O modelo selecionado não suporta geração de imagem.")
 
     try:
         result = ImageGenerationService().generate(settings=settings, model=selected_model, prompt=payload.prompt)
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Falha OpenRouter: {exc}") from exc
+    except OpenRouterHTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Falha OpenRouter ({exc.status_code}): {exc.response_text}") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -94,7 +94,7 @@ async def analyze_video(
     caps = ModelCatalogService().get_capabilities()
     model_ids = {m["id"] for m in caps["video_input_models"]}
     if model not in model_ids:
-        raise HTTPException(status_code=400, detail="Modelo incompatível para análise de vídeo")
+        raise HTTPException(status_code=400, detail="O modelo selecionado não suporta análise de vídeo por input.")
 
     try:
         result = VideoAnalysisService().analyze(
@@ -105,8 +105,8 @@ async def analyze_video(
             content_type=video_file.content_type or "video/mp4",
             raw_bytes=raw,
         )
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Falha OpenRouter: {exc}") from exc
+    except OpenRouterHTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Falha OpenRouter ({exc.status_code}): {exc.response_text}") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -132,4 +132,4 @@ def list_multimodal_history(username: str = Depends(get_username), db: Session =
 
 @router.post("/generate-video")
 def generate_video_placeholder():
-    raise HTTPException(status_code=501, detail="Geração de vídeo indisponível: aguardando suporte oficial implementável no OpenRouter.")
+    raise HTTPException(status_code=501, detail="Geração de vídeo indisponível: recurso atual suporta análise de vídeo por input.")

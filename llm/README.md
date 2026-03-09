@@ -45,3 +45,9 @@ Foram consultadas fontes oficiais antes da implementação:
 ```bash
 python -m pytest -q llm/tests
 ```
+
+## Relatório técnico (curto)
+- **Causa raiz do 404**: envio de payload/modelo incompatível para image generation no endpoint de chat completions, com seleção indevida de modelos text-only na UI/validação.
+- **Modelos que realmente suportam imagem**: apenas os retornados pela Models API com `architecture.output_modalities` contendo `image`.
+- **Modelos que realmente suportam vídeo input**: apenas os retornados pela Models API com `architecture.input_modalities` contendo `video`.
+- **Correções aplicadas**: filtro estrito por capabilities oficiais, validação de compatibilidade antes da chamada, fallback só para imagem gratuita real, e logs estruturados de erro HTTP com status/url/payload sanitizado/body.

@@ -24,41 +24,43 @@ class ModelCatalogService:
         for model in models:
             arch = model.get("architecture") or {}
             model_id = model.get("id") or ""
+            input_modalities = arch.get("input_modalities", [])
+            output_modalities = arch.get("output_modalities", [])
+            supports_image_generation = "image" in output_modalities
+            supports_video_input = "video" in input_modalities
             mapped.append(
                 {
                     "id": model_id,
                     "name": model.get("name", model_id),
-                    "input_modalities": arch.get("input_modalities", []),
-                    "output_modalities": arch.get("output_modalities", []),
+                    "input_modalities": input_modalities,
+                    "output_modalities": output_modalities,
                     "is_free": self._is_free_model(model_id),
+                    "supports_image_generation": supports_image_generation,
+                    "supports_video_input": supports_video_input,
                 }
             )
 
-        image_candidates = [model for model in mapped if self._is_image_candidate(model)]
+        image_candidates = [model for model in mapped if model["supports_image_generation"]]
         image_models_free = [model for model in image_candidates if model["is_free"]]
         image_models_paid = [model for model in image_candidates if not model["is_free"]]
+        video_input_models = [m for m in mapped if m["supports_video_input"]]
 
         return {
             "models": mapped,
             "image_models": image_candidates,
             "image_models_free": image_models_free,
             "image_models_paid": image_models_paid,
-            "video_input_models": [m for m in mapped if "video" in m["input_modalities"]],
-            "video_generation_models": [m for m in mapped if "video" in m["output_modalities"]],
-            "default_image_model": self.resolve_default_image_model(image_candidates=image_candidates),
+            "video_input_models": video_input_models,
+            "video_generation_models": [],
+            "default_image_model": self.resolve_default_image_model(image_models_free=image_models_free),
         }
 
-    def resolve_default_image_model(self, *, image_candidates: list[dict[str, Any]]) -> str:
-        """Always prefer free image models for automatic selection."""
-        free_models = [model["id"] for model in image_candidates if model.get("is_free") and model.get("id")]
+    def resolve_default_image_model(self, *, image_models_free: list[dict[str, Any]]) -> str:
+        """Always prefer real free image-capable models for automatic selection."""
+        free_models = [model["id"] for model in image_models_free if model.get("id")]
         if free_models:
             return free_models[0]
-        return FREE_IMAGE_FALLBACK_MODEL
-
-    def _is_image_candidate(self, model: dict[str, Any]) -> bool:
-        outputs = model.get("output_modalities") or []
-        model_id = model.get("id") or ""
-        return "image" in outputs or self._is_free_model(model_id)
+        return ""
 
     def _is_free_model(self, model_id: str) -> bool:
         return model_id.endswith(":free")
@@ -104,12 +106,15 @@ class ImageGenerationService:
     def __init__(self, client: OpenRouterClient | None = None):
         self.client = client or OpenRouterClient()
 
-    def generate(self, *, settings: Settings, model: str, prompt: str) -> dict[str, str]:
-        payload = {
+    def build_payload(self, *, model: str, prompt: str) -> dict[str, Any]:
+        return {
             "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "modalities": ["image", "text"],
+            "modalities": ["text", "image"],
+            "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
         }
+
+    def generate(self, *, settings: Settings, model: str, prompt: str) -> dict[str, str]:
+        payload = self.build_payload(model=model, prompt=prompt)
         data = self.client.chat_completion(
             api_key=settings.openrouter_api_key,
             payload=payload,

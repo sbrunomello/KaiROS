@@ -40,5 +40,6 @@ pre { white-space:pre-wrap; background:#0b1220; padding:12px; border-radius:8px;
 .badge-free, .badge-paid { font-size:10px; border-radius:999px; padding:2px 6px; font-weight:700; }
 .badge-free { background:#16a34a; color:white; }
 .badge-paid { background:#475569; color:#e2e8f0; }
+.badge-info { background:#0ea5e9; color:white; font-size:10px; border-radius:999px; padding:2px 6px; font-weight:700; }
 
 @media (max-width: 768px) { .image-model-catalog { grid-template-columns: 1fr; } }
