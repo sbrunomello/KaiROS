@@ -17,6 +17,12 @@ detector:
 tracking:
   ema_alpha: 0.35
   tracking_timeout_ms: 1200
+  kp: 6.0
+  deadband: 0.08
+  area_min: 350
+
+color_tracking:
+  target_color_default: blue
 
 render:
   overlay_alpha: 0.45

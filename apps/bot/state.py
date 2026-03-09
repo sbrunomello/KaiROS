@@ -27,6 +27,7 @@ class RuntimeState:
     vision_running: bool = False
     vision_last_error: Optional[str] = None
     vision_fps: float = 0.0
+    recognition_mode: str = "yolo"
 
 
 class SharedState:
