@@ -1,5 +1,5 @@
 let activeChatId = null;
-let modelCapabilities = { image_models: [], image_models_free: [], image_models_paid: [], video_input_models: [], video_generation_models: [], models: [], default_image_model: 'google/gemini-2.5-flash-image-preview:free' };
+let modelCapabilities = { image_models: [], image_models_free: [], image_models_paid: [], video_input_models: [], video_generation_models: [], models: [], default_image_model: '' };
 const ACTIVE_CHAT_KEY_PREFIX = 'kairos_active_chat_';
 
 function getStoredUsername() { return localStorage.getItem('kairos_username') || 'usuario1'; }
@@ -59,15 +59,9 @@ async function loadCapabilities() {
   try {
     modelCapabilities = await fetchJson('/api/models/capabilities');
   } catch (_e) {
-    const fallbackImage = document.getElementById('default_image_model').value || 'google/gemini-2.5-flash-image-preview:free';
     modelCapabilities = {
-      models: [],
-      image_models: [{ id: fallbackImage, name: fallbackImage, is_free: fallbackImage.endsWith(':free') }],
-      image_models_free: [{ id: fallbackImage, name: fallbackImage, is_free: fallbackImage.endsWith(':free') }],
-      image_models_paid: [],
-      video_input_models: [{ id: document.getElementById('default_video_analysis_model').value || 'google/gemini-2.5-pro', name: 'Video Analysis' }],
-      video_generation_models: [],
-      default_image_model: fallbackImage,
+      models: [], image_models: [], image_models_free: [], image_models_paid: [],
+      video_input_models: [], video_generation_models: [], default_image_model: ''
     };
   }
 
@@ -77,8 +71,8 @@ async function loadCapabilities() {
 
   const defaultInput = document.getElementById('default_image_model');
   // Sempre prioriza gratuito como padrão automático, sem impedir escolha manual de pago.
-  if (!defaultInput.value || !defaultInput.value.endsWith(':free')) {
-    defaultInput.value = modelCapabilities.default_image_model || 'google/gemini-2.5-flash-image-preview:free';
+  if (!defaultInput.value && modelCapabilities.default_image_model) {
+    defaultInput.value = modelCapabilities.default_image_model;
   }
 }
 
@@ -102,15 +96,14 @@ function fillImageModelSelect(id, freeModels, paidModels, defaultModel) {
   appendGroup('Modelos gratuitos', freeModels, true);
   appendGroup('Modelos pagos', paidModels, false);
 
-  // fallback visual se nenhuma lista vier da API.
   if (!el.options.length) {
     const op = document.createElement('option');
-    op.value = 'google/gemini-2.5-flash-image-preview:free';
-    op.textContent = 'google/gemini-2.5-flash-image-preview:free [FREE]';
+    op.value = '';
+    op.textContent = 'Nenhum modelo de imagem disponível';
     el.appendChild(op);
   }
 
-  const preferred = defaultModel || 'google/gemini-2.5-flash-image-preview:free';
+  const preferred = defaultModel || '';
   const hasPreferred = [...el.options].some((o) => o.value === preferred);
   el.value = hasPreferred ? preferred : el.options[0].value;
 }
@@ -124,7 +117,7 @@ function renderImageModelCatalog() {
 
   const listHtml = (models, freeBadge) => {
     if (!models.length) return '<li>Nenhum modelo</li>';
-    return models.map((m) => `<li><code>${m.id}</code>${freeBadge ? ' <span class="badge-free">FREE</span>' : ' <span class="badge-paid">PAGO</span>'}</li>`).join('');
+    return models.map((m) => `<li><code>${m.id}</code>${freeBadge ? ' <span class="badge-free">FREE</span>' : ' <span class="badge-paid">PAGO</span>'} <span class="badge-info">IMAGE</span></li>`).join('');
   };
 
   holder.innerHTML = `
@@ -142,7 +135,12 @@ function renderImageModelCatalog() {
 function fillModelSelect(id, models) {
   const el = document.getElementById(id); if (!el) return;
   el.innerHTML = '';
-  models.forEach((m) => { const op = document.createElement('option'); op.value = m.id; op.textContent = m.name || m.id; el.appendChild(op); });
+  models.forEach((m) => {
+    const op = document.createElement('option');
+    op.value = m.id;
+    op.textContent = `${m.name || m.id} [VIDEO INPUT]`;
+    el.appendChild(op);
+  });
 }
 
 async function loadSettings() {
@@ -179,7 +177,11 @@ async function saveSettings(e) {
 async function generateImage() {
   setStatus('image-status', 'Gerando imagem...');
   try {
-    const payload = { prompt: document.getElementById('image-prompt').value.trim(), model: document.getElementById('image-model').value || '' };
+    const selectedModel = document.getElementById('image-model').value || '';
+    if (!selectedModel) {
+      throw new Error('Nenhum modelo gratuito de imagem está disponível no catálogo atual.');
+    }
+    const payload = { prompt: document.getElementById('image-prompt').value.trim(), model: selectedModel };
     const data = await fetchJson(apiUrl('/api/generate-image'), { method: 'POST', headers: { 'Content-Type': 'application/json', ...usernameHeaders() }, body: JSON.stringify(payload) });
     const holder = document.getElementById('image-result');
     holder.innerHTML = `<img src="${data.image_url}" alt="imagem gerada" class="generated-image" /><p>${data.text || ''}</p><a href="${data.image_url}" target="_blank">Abrir</a> | <a href="${data.image_url}" download>Download</a>`;
