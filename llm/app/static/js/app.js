@@ -42,6 +42,21 @@ function usernameHeaders() {
   return { 'X-Username': getUsername() };
 }
 
+/**
+ * Build API URLs with username in query string as a resilient fallback.
+ *
+ * Why both header and query param?
+ * - In local/dev it works with header only.
+ * - In some reverse proxies, custom headers may be stripped.
+ * - Server supports both (deps.get_username), so this guarantees per-user isolation.
+ */
+function apiUrl(path, username = getUsername()) {
+  const safePath = path.startsWith('/') ? path : `/${path}`;
+  const url = new URL(safePath, window.location.origin);
+  url.searchParams.set('username', username);
+  return `${url.pathname}${url.search}`;
+}
+
 function validateUsername(username) {
   return /^[a-zA-Z0-9_-]{3,32}$/.test(username);
 }
@@ -53,7 +68,7 @@ async function loadChats({ shouldAutoOpen = true } = {}) {
     return;
   }
 
-  const res = await fetch('/api/chats', { headers: usernameHeaders() });
+  const res = await fetch(apiUrl('/api/chats', username), { headers: usernameHeaders() });
   if (!res.ok) {
     throw new Error('Falha ao carregar conversas');
   }
@@ -91,7 +106,8 @@ async function openChat(id, { refreshList = true } = {}) {
   activeChatId = id;
   persistActiveChatId(getUsername(), id);
 
-  const res = await fetch(`/api/chats/${id}`, { headers: usernameHeaders() });
+  const username = getUsername();
+  const res = await fetch(apiUrl(`/api/chats/${id}`, username), { headers: usernameHeaders() });
   if (!res.ok) {
     const body = await res.json();
     throw new Error(body.detail || 'Falha ao abrir conversa');
@@ -119,7 +135,7 @@ document.getElementById('new-chat-btn').onclick = async () => {
     alert("Username inválido. Use 3-32 caracteres com letras, números, '_' ou '-'.");
     return;
   }
-  const res = await fetch('/api/chats', {
+  const res = await fetch(apiUrl('/api/chats', username), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...usernameHeaders() },
     body: JSON.stringify({}),
@@ -153,7 +169,8 @@ document.getElementById('chat-form').onsubmit = async (e) => {
   status.textContent = 'Gerando resposta...';
 
   try {
-    const res = await fetch(`/api/chat/${activeChatId}/messages`, {
+    const username = getUsername();
+    const res = await fetch(apiUrl(`/api/chat/${activeChatId}/messages`, username), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...usernameHeaders() },
       body: JSON.stringify({ content }),

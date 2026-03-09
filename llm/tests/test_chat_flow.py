@@ -37,3 +37,16 @@ def test_chat_isolation_between_users(client):
 def test_invalid_username_returns_422(client):
     response = client.get('/api/chats', headers={'X-Username': 'x'})
     assert response.status_code == 422
+
+
+def test_chat_isolation_with_query_param_username(client):
+    create = client.post('/api/chats?username=usuario1', json={})
+    assert create.status_code == 200
+    chat_id = create.json()['id']
+
+    list_second = client.get('/api/chats?username=usuario2')
+    assert list_second.status_code == 200
+    assert list_second.json() == []
+
+    detail_second = client.get(f'/api/chats/{chat_id}?username=usuario2')
+    assert detail_second.status_code == 404
