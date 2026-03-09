@@ -190,35 +190,90 @@ function renderImageModelCatalog() {
   `;
 }
 
+const BOOLEAN_SELECT_FIELDS = new Set(['persist_multimodal_history']);
+const BOOLEAN_CHECKBOX_FIELDS = new Set(['image_edit_enabled', 'video_enable_vision']);
+
+function setSettingsFieldValue(field, value) {
+  const el = document.getElementById(field);
+  if (!el) return;
+
+  if (BOOLEAN_CHECKBOX_FIELDS.has(field)) {
+    el.checked = Boolean(value);
+    return;
+  }
+
+  if (BOOLEAN_SELECT_FIELDS.has(field)) {
+    el.value = String(Boolean(value));
+    return;
+  }
+
+  el.value = value ?? '';
+}
+
+function getSettingsFieldValue(field) {
+  const el = document.getElementById(field);
+  if (!el) return undefined;
+
+  if (BOOLEAN_CHECKBOX_FIELDS.has(field)) return el.checked;
+  if (BOOLEAN_SELECT_FIELDS.has(field)) return el.value === 'true';
+  if (el.type === 'number') return el.value === '' ? undefined : Number(el.value);
+  return el.value;
+}
+
 async function loadSettings() {
   const data = await fetchJson('/api/settings');
-  Object.entries(data).forEach(([k, v]) => {
-    const el = document.getElementById(k);
-    if (!el) return;
-    if (el.tagName === 'SELECT' && k === 'persist_multimodal_history') el.value = String(v);
-    else el.value = v ?? '';
-  });
+  Object.entries(data).forEach(([field, value]) => setSettingsFieldValue(field, value));
 }
 
 async function saveSettings(e) {
   e.preventDefault();
   const payload = {
-    openrouter_api_key: document.getElementById('openrouter_api_key').value,
-    model_name: document.getElementById('model_name').value,
-    default_image_model: document.getElementById('default_image_model').value,
-    default_video_analysis_model: document.getElementById('default_video_analysis_model').value,
-    default_video_generation_model: document.getElementById('default_video_generation_model').value,
-    temperature: Number(document.getElementById('temperature').value || 0.7),
-    system_prompt: document.getElementById('system_prompt').value,
-    assistant_name: document.getElementById('assistant_name').value,
-    http_referer: document.getElementById('http_referer').value,
-    x_title: document.getElementById('x_title').value,
-    request_timeout_seconds: Number(document.getElementById('request_timeout_seconds').value || 25),
-    max_video_upload_mb: Number(document.getElementById('max_video_upload_mb').value || 20),
-    persist_multimodal_history: document.getElementById('persist_multimodal_history').value === 'true',
+    openrouter_api_key: getSettingsFieldValue('openrouter_api_key') ?? '',
+    groq_api_key: getSettingsFieldValue('groq_api_key') ?? '',
+    huggingface_api_key: getSettingsFieldValue('huggingface_api_key') ?? '',
+    chat_provider: getSettingsFieldValue('chat_provider') ?? 'groq',
+    chat_fallback_provider: getSettingsFieldValue('chat_fallback_provider') ?? 'openrouter',
+    speech_provider: getSettingsFieldValue('speech_provider') ?? 'groq',
+    vision_provider: getSettingsFieldValue('vision_provider') ?? 'groq',
+    image_gen_provider: getSettingsFieldValue('image_gen_provider') ?? 'openrouter',
+    image_edit_provider: getSettingsFieldValue('image_edit_provider') ?? 'openrouter',
+    video_analysis_mode: getSettingsFieldValue('video_analysis_mode') ?? 'legacy',
+    model_name: getSettingsFieldValue('model_name') ?? 'openrouter/auto',
+    chat_model_name: getSettingsFieldValue('chat_model_name') ?? 'llama-3.1-8b-instant',
+    speech_model_name: getSettingsFieldValue('speech_model_name') ?? 'whisper-large-v3-turbo',
+    vision_model_name: getSettingsFieldValue('vision_model_name') ?? 'llama-3.2-11b-vision-preview',
+    default_image_model: getSettingsFieldValue('default_image_model') ?? 'bytedance-seed/seedream-4.5',
+    openrouter_default_image_model: getSettingsFieldValue('openrouter_default_image_model') ?? 'bytedance-seed/seedream-4.5',
+    hf_default_image_model: getSettingsFieldValue('hf_default_image_model') ?? 'black-forest-labs/FLUX.1-schnell',
+    image_edit_model_name: getSettingsFieldValue('image_edit_model_name') ?? '',
+    default_video_analysis_model: getSettingsFieldValue('default_video_analysis_model') ?? 'nvidia/nemotron-nano-12b-v2-vl:free',
+    default_video_generation_model: getSettingsFieldValue('default_video_generation_model') ?? '',
+    whisper_cpp_binary_path: getSettingsFieldValue('whisper_cpp_binary_path') ?? '',
+    whisper_cpp_model_path: getSettingsFieldValue('whisper_cpp_model_path') ?? '',
+    ffmpeg_binary_path: getSettingsFieldValue('ffmpeg_binary_path') ?? 'ffmpeg',
+    image_edit_enabled: getSettingsFieldValue('image_edit_enabled') ?? false,
+    video_enable_vision: getSettingsFieldValue('video_enable_vision') ?? false,
+    video_frame_sample_seconds: getSettingsFieldValue('video_frame_sample_seconds') ?? 5,
+    temperature: getSettingsFieldValue('temperature') ?? 0.7,
+    system_prompt: getSettingsFieldValue('system_prompt') ?? 'Você é uma assistente útil, objetiva e confiável.',
+    assistant_name: getSettingsFieldValue('assistant_name') ?? 'Kai',
+    http_referer: getSettingsFieldValue('http_referer') ?? '',
+    x_title: getSettingsFieldValue('x_title') ?? '',
+    request_timeout_seconds: getSettingsFieldValue('request_timeout_seconds') ?? 25,
+    max_video_upload_mb: getSettingsFieldValue('max_video_upload_mb') ?? 20,
+    persist_multimodal_history: getSettingsFieldValue('persist_multimodal_history') ?? true,
   };
-  try { await fetchJson('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); setStatus('settings-status', 'Salvo com sucesso.'); }
-  catch (e2) { setStatus('settings-status', `Erro ao salvar: ${e2.message}`); }
+
+  try {
+    await fetchJson('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    setStatus('settings-status', 'Salvo com sucesso.');
+  } catch (e2) {
+    setStatus('settings-status', `Erro ao salvar: ${e2.message}`);
+  }
 }
 
 

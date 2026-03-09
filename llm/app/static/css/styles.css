@@ -56,3 +56,9 @@ pre { white-space:pre-wrap; background:#0b1220; padding:12px; border-radius:8px;
 .image-input-preview { margin:8px 0; }
 #image-history { display:flex; flex-direction:column; gap:8px; }
 .history-item { background:#0b1220; border:1px solid #334155; border-radius:8px; padding:8px; }
+
+
+.settings-section { border: 1px solid #334155; border-radius: 10px; padding: 12px; margin: 0; }
+.settings-section legend { padding: 0 6px; color: #93c5fd; font-weight: 700; }
+.checkbox-field { flex-direction: row; align-items: center; gap: 10px; }
+.checkbox-field input[type="checkbox"] { width: 16px; height: 16px; }

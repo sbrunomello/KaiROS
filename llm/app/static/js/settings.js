@@ -1,32 +1,101 @@
+const BOOLEAN_SELECT_FIELDS = new Set(['persist_multimodal_history']);
+const BOOLEAN_CHECKBOX_FIELDS = new Set(['image_edit_enabled', 'video_enable_vision']);
+
+function setFieldValue(field, value) {
+  const el = document.getElementById(field);
+  if (!el) return;
+
+  if (BOOLEAN_CHECKBOX_FIELDS.has(field)) {
+    el.checked = Boolean(value);
+    return;
+  }
+
+  if (BOOLEAN_SELECT_FIELDS.has(field)) {
+    el.value = String(Boolean(value));
+    return;
+  }
+
+  el.value = value ?? '';
+}
+
+function getFieldValue(field) {
+  const el = document.getElementById(field);
+  if (!el) return undefined;
+
+  if (BOOLEAN_CHECKBOX_FIELDS.has(field)) {
+    return el.checked;
+  }
+
+  if (BOOLEAN_SELECT_FIELDS.has(field)) {
+    return el.value === 'true';
+  }
+
+  if (el.type === 'number') {
+    return el.value === '' ? undefined : Number(el.value);
+  }
+
+  return el.value;
+}
+
 async function loadSettings() {
   const res = await fetch('/api/settings');
+  if (!res.ok) {
+    document.getElementById('settings-status').textContent = 'Erro ao carregar configurações.';
+    return;
+  }
+
   const data = await res.json();
-  Object.entries(data).forEach(([k, v]) => {
-    const el = document.getElementById(k);
-    if (!el) return;
-    if (k === 'persist_multimodal_history') el.value = String(v);
-    else el.value = v ?? '';
+  Object.entries(data).forEach(([field, value]) => {
+    setFieldValue(field, value);
   });
 }
 
 document.getElementById('settings-form').onsubmit = async (e) => {
   e.preventDefault();
+
   const payload = {
-    openrouter_api_key: document.getElementById('openrouter_api_key').value,
-    model_name: document.getElementById('model_name').value,
-    default_image_model: document.getElementById('default_image_model').value,
-    default_video_analysis_model: document.getElementById('default_video_analysis_model').value,
-    default_video_generation_model: document.getElementById('default_video_generation_model').value,
-    temperature: Number(document.getElementById('temperature').value || 0.7),
-    system_prompt: document.getElementById('system_prompt').value,
-    assistant_name: document.getElementById('assistant_name').value,
-    http_referer: document.getElementById('http_referer').value,
-    x_title: document.getElementById('x_title').value,
-    request_timeout_seconds: Number(document.getElementById('request_timeout_seconds').value || 25),
-    max_video_upload_mb: Number(document.getElementById('max_video_upload_mb').value || 20),
-    persist_multimodal_history: document.getElementById('persist_multimodal_history').value === 'true',
+    openrouter_api_key: getFieldValue('openrouter_api_key') ?? '',
+    groq_api_key: getFieldValue('groq_api_key') ?? '',
+    huggingface_api_key: getFieldValue('huggingface_api_key') ?? '',
+    chat_provider: getFieldValue('chat_provider') ?? 'groq',
+    chat_fallback_provider: getFieldValue('chat_fallback_provider') ?? 'openrouter',
+    speech_provider: getFieldValue('speech_provider') ?? 'groq',
+    vision_provider: getFieldValue('vision_provider') ?? 'groq',
+    image_gen_provider: getFieldValue('image_gen_provider') ?? 'openrouter',
+    image_edit_provider: getFieldValue('image_edit_provider') ?? 'openrouter',
+    video_analysis_mode: getFieldValue('video_analysis_mode') ?? 'legacy',
+    model_name: getFieldValue('model_name') ?? 'openrouter/auto',
+    chat_model_name: getFieldValue('chat_model_name') ?? 'llama-3.1-8b-instant',
+    speech_model_name: getFieldValue('speech_model_name') ?? 'whisper-large-v3-turbo',
+    vision_model_name: getFieldValue('vision_model_name') ?? 'llama-3.2-11b-vision-preview',
+    default_image_model: getFieldValue('default_image_model') ?? 'bytedance-seed/seedream-4.5',
+    openrouter_default_image_model: getFieldValue('openrouter_default_image_model') ?? 'bytedance-seed/seedream-4.5',
+    hf_default_image_model: getFieldValue('hf_default_image_model') ?? 'black-forest-labs/FLUX.1-schnell',
+    image_edit_model_name: getFieldValue('image_edit_model_name') ?? '',
+    default_video_analysis_model: getFieldValue('default_video_analysis_model') ?? 'nvidia/nemotron-nano-12b-v2-vl:free',
+    default_video_generation_model: getFieldValue('default_video_generation_model') ?? '',
+    whisper_cpp_binary_path: getFieldValue('whisper_cpp_binary_path') ?? '',
+    whisper_cpp_model_path: getFieldValue('whisper_cpp_model_path') ?? '',
+    ffmpeg_binary_path: getFieldValue('ffmpeg_binary_path') ?? 'ffmpeg',
+    image_edit_enabled: getFieldValue('image_edit_enabled') ?? false,
+    video_enable_vision: getFieldValue('video_enable_vision') ?? false,
+    video_frame_sample_seconds: getFieldValue('video_frame_sample_seconds') ?? 5,
+    temperature: getFieldValue('temperature') ?? 0.7,
+    system_prompt: getFieldValue('system_prompt') ?? 'Você é uma assistente útil, objetiva e confiável.',
+    assistant_name: getFieldValue('assistant_name') ?? 'Kai',
+    http_referer: getFieldValue('http_referer') ?? '',
+    x_title: getFieldValue('x_title') ?? '',
+    request_timeout_seconds: getFieldValue('request_timeout_seconds') ?? 25,
+    max_video_upload_mb: getFieldValue('max_video_upload_mb') ?? 20,
+    persist_multimodal_history: getFieldValue('persist_multimodal_history') ?? true,
   };
-  const res = await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+  const res = await fetch('/api/settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
   document.getElementById('settings-status').textContent = res.ok ? 'Salvo com sucesso.' : 'Erro ao salvar.';
 };
 
