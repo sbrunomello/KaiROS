@@ -16,22 +16,25 @@ def parse_args():
     parser.add_argument("--width", type=int)
     parser.add_argument("--height", type=int)
     parser.add_argument("--fps", type=int)
+    parser.add_argument("--no-detector", action="store_true", help="inicia sem carregar YOLO/torch")
     return parser.parse_args()
 
 
 def main():
-    try:
-        run_binary_dependency_preflight()
-    except PreflightError as exc:
-        raise SystemExit(f"[KAIROS PRECHECK] {exc}") from exc
+    args = parse_args()
 
     # Import tardio para garantir que falhas de binários nativos sejam reportadas
     # de forma amigável no preflight em vez de derrubar o processo com SIGILL.
     from .bot_service import apply_overrides, load_config, run_service
 
-    args = parse_args()
     cfg = load_config(args.config)
     apply_overrides(cfg, args)
+
+    try:
+        run_binary_dependency_preflight(detector_enabled=cfg["detector"].get("enabled", True))
+    except PreflightError as exc:
+        raise SystemExit(f"[KAIROS PRECHECK] {exc}") from exc
+
     run_service(cfg)
 
 

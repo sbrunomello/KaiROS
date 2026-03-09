@@ -1,4 +1,6 @@
-from apps.bot.bot_service import DEFAULT_CONFIG, deep_merge, load_config
+from types import SimpleNamespace
+
+from apps.bot.bot_service import DEFAULT_CONFIG, apply_overrides, deep_merge, load_config
 
 
 def test_deep_merge_keeps_defaults():
@@ -13,3 +15,12 @@ def test_load_config(tmp_path):
     cfg = load_config(str(cfg_file))
     assert cfg["detector"]["target_class_default"] == "person"
     assert cfg["servo"]["enabled"] is True
+
+
+def test_apply_overrides_can_disable_detector():
+    cfg = deep_merge(DEFAULT_CONFIG, {})
+    args = SimpleNamespace(no_servo=False, host=None, port=None, width=None, height=None, fps=None, no_detector=True)
+
+    apply_overrides(cfg, args)
+
+    assert cfg["detector"]["enabled"] is False

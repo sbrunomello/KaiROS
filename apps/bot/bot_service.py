@@ -83,6 +83,8 @@ def apply_overrides(cfg: dict, args):
         cfg["camera"]["height"] = args.height
     if args.fps:
         cfg["camera"]["fps"] = args.fps
+    if getattr(args, "no_detector", False):
+        cfg["detector"]["enabled"] = False
 
 
 def run_service(cfg: dict):
@@ -113,10 +115,16 @@ def run_service(cfg: dict):
         min_angle_step=cfg["servo"]["min_angle_step"],
     )
     servo_service = ServoService(servo_backend)
-    vision_service = VisionService(cfg, state, servo_service)
+    vision_service = None
+    model_classes = []
+    if cfg["detector"].get("enabled", True):
+        vision_service = VisionService(cfg, state, servo_service)
+        model_classes = vision_service.model_classes
+        tracking_thread = threading.Thread(target=vision_service.run, daemon=True)
+        tracking_thread.start()
+    else:
+        state.set_vision_running(False)
+        state.set_vision_error("detector_disabled")
 
-    tracking_thread = threading.Thread(target=vision_service.run, daemon=True)
-    tracking_thread.start()
-
-    app = build_app(cfg, state, servo_service, vision_service.model_classes)
+    app = build_app(cfg, state, servo_service, model_classes)
     app.run(host=cfg["web"]["host"], port=cfg["web"]["port"], threaded=True)

@@ -17,9 +17,12 @@ class BinaryModuleCheck:
 
 
 # Dependências importadas em subprocesso para evitar que um SIGILL derrube o processo principal.
-BINARY_MODULE_CHECKS: tuple[BinaryModuleCheck, ...] = (
+BASE_BINARY_MODULE_CHECKS: tuple[BinaryModuleCheck, ...] = (
     BinaryModuleCheck("cv2", "captura/render de vídeo"),
     BinaryModuleCheck("numpy", "operações numéricas"),
+)
+
+DETECTOR_BINARY_MODULE_CHECKS: tuple[BinaryModuleCheck, ...] = (
     BinaryModuleCheck("torch", "inferência YOLO"),
     BinaryModuleCheck("ultralytics", "pipeline de detecção"),
 )
@@ -38,10 +41,14 @@ def _run_import_check(module_name: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def run_binary_dependency_preflight() -> None:
+def run_binary_dependency_preflight(*, detector_enabled: bool = True) -> None:
     """Valida se módulos binários críticos podem ser importados com segurança."""
 
-    for check in BINARY_MODULE_CHECKS:
+    checks = BASE_BINARY_MODULE_CHECKS
+    if detector_enabled:
+        checks = checks + DETECTOR_BINARY_MODULE_CHECKS
+
+    for check in checks:
         result = _run_import_check(check.name)
 
         if result.returncode == 0:
@@ -59,7 +66,7 @@ def run_binary_dependency_preflight() -> None:
                         "     pip uninstall -y torch torchvision torchaudio opencv-python opencv-contrib-python",
                         "     pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio",
                         "     pip install --no-cache-dir opencv-python-headless",
-                        "  3) Se necessário, use pacotes do sistema para OpenCV (python3-opencv).",
+                        "  3) Se necessário, use pacotes do sistema para OpenCV (sudo apt install python3-opencv).",
                         f"Contexto: módulo necessário para {check.rationale}.",
                     ]
                 )
