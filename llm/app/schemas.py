@@ -48,7 +48,7 @@ class ChatResponseOut(BaseModel):
 class SettingsIn(BaseModel):
     openrouter_api_key: str = ""
     model_name: str = "openrouter/auto"
-    default_image_model: str = "google/gemini-3.1-flash-image-preview"
+    default_image_model: str = "google/gemini-2.5-flash-image-preview:free"
     default_video_analysis_model: str = "google/gemini-2.5-pro"
     default_video_generation_model: str = ""
     temperature: float = Field(default=0.7, ge=0, le=2)
@@ -70,18 +70,22 @@ class ModelInfo(BaseModel):
     name: str
     input_modalities: list[str] = []
     output_modalities: list[str] = []
+    is_free: bool = False
 
 
 class ModelCapabilitiesOut(BaseModel):
     models: list[ModelInfo]
     image_models: list[ModelInfo]
+    image_models_free: list[ModelInfo]
+    image_models_paid: list[ModelInfo]
     video_input_models: list[ModelInfo]
     video_generation_models: list[ModelInfo]
+    default_image_model: str
 
 
 class ImageGenerationIn(BaseModel):
     prompt: str = Field(min_length=1, max_length=4000)
-    model: str
+    model: str = ""
 
 
 class ImageGenerationOut(BaseModel):
