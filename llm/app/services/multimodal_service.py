@@ -11,6 +11,9 @@ from ..models import MultimodalHistory, Settings
 from .openrouter_client import OpenRouterClient
 
 
+FREE_IMAGE_FALLBACK_MODEL = "google/gemini-2.5-flash-image-preview:free"
+
+
 class ModelCatalogService:
     def __init__(self, client: OpenRouterClient | None = None):
         self.client = client or OpenRouterClient()
@@ -20,20 +23,45 @@ class ModelCatalogService:
         mapped = []
         for model in models:
             arch = model.get("architecture") or {}
+            model_id = model.get("id") or ""
             mapped.append(
                 {
-                    "id": model.get("id"),
-                    "name": model.get("name", model.get("id")),
+                    "id": model_id,
+                    "name": model.get("name", model_id),
                     "input_modalities": arch.get("input_modalities", []),
                     "output_modalities": arch.get("output_modalities", []),
+                    "is_free": self._is_free_model(model_id),
                 }
             )
+
+        image_candidates = [model for model in mapped if self._is_image_candidate(model)]
+        image_models_free = [model for model in image_candidates if model["is_free"]]
+        image_models_paid = [model for model in image_candidates if not model["is_free"]]
+
         return {
             "models": mapped,
-            "image_models": [m for m in mapped if "image" in m["output_modalities"]],
+            "image_models": image_candidates,
+            "image_models_free": image_models_free,
+            "image_models_paid": image_models_paid,
             "video_input_models": [m for m in mapped if "video" in m["input_modalities"]],
             "video_generation_models": [m for m in mapped if "video" in m["output_modalities"]],
+            "default_image_model": self.resolve_default_image_model(image_candidates=image_candidates),
         }
+
+    def resolve_default_image_model(self, *, image_candidates: list[dict[str, Any]]) -> str:
+        """Always prefer free image models for automatic selection."""
+        free_models = [model["id"] for model in image_candidates if model.get("is_free") and model.get("id")]
+        if free_models:
+            return free_models[0]
+        return FREE_IMAGE_FALLBACK_MODEL
+
+    def _is_image_candidate(self, model: dict[str, Any]) -> bool:
+        outputs = model.get("output_modalities") or []
+        model_id = model.get("id") or ""
+        return "image" in outputs or self._is_free_model(model_id)
+
+    def _is_free_model(self, model_id: str) -> bool:
+        return model_id.endswith(":free")
 
 
 class HistoryService:

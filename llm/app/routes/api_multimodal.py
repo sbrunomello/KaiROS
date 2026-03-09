@@ -42,12 +42,19 @@ def generate_image(payload: ImageGenerationIn, username: str = Depends(get_usern
         raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
 
     caps = ModelCatalogService().get_capabilities()
+    selected_model = (payload.model or "").strip() or caps.get("default_image_model") or settings.default_image_model
+
+    # Segurança: nunca auto-selecionar modelo pago para geração de imagem.
+    # Se o usuário escolher manualmente um modelo pago, a seleção explícita é respeitada.
+    if not (payload.model or "").strip() and not selected_model.endswith(":free"):
+        selected_model = caps.get("default_image_model") or settings.default_image_model
+
     model_ids = {m["id"] for m in caps["image_models"]}
-    if payload.model not in model_ids:
+    if selected_model not in model_ids:
         raise HTTPException(status_code=400, detail="Modelo incompatível para geração de imagem")
 
     try:
-        result = ImageGenerationService().generate(settings=settings, model=payload.model, prompt=payload.prompt)
+        result = ImageGenerationService().generate(settings=settings, model=selected_model, prompt=payload.prompt)
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Falha OpenRouter: {exc}") from exc
     except ValueError as exc:
@@ -57,14 +64,14 @@ def generate_image(payload: ImageGenerationIn, username: str = Depends(get_usern
         HistoryService(db).add(
             username=username,
             item_type="image_generation",
-            model_name=payload.model,
+            model_name=selected_model,
             prompt=payload.prompt,
             status="ok",
             response_text=result["text"],
             asset_url=result["image_url"],
         )
 
-    return {"status": "ok", "model": payload.model, "prompt": payload.prompt, **result}
+    return {"status": "ok", "model": selected_model, "prompt": payload.prompt, **result}
 
 
 @router.post("/analyze-video", response_model=VideoAnalysisOut)

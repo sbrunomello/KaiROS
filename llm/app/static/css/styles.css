@@ -31,3 +31,14 @@ input { border-radius:8px; border:1px solid #475569; padding:8px; }
 .panel { max-width:900px; margin:16px auto; padding:16px; background:#1e293b; border-radius:12px; }
 .generated-image { max-width:100%; border-radius:12px; margin-top:8px; }
 pre { white-space:pre-wrap; background:#0b1220; padding:12px; border-radius:8px; }
+
+.hint { color:#cbd5e1; font-size:13px; margin-top:4px; }
+.image-model-catalog { display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin:10px 0 14px; }
+.model-group { background:#0b1220; border:1px solid #334155; border-radius:8px; padding:10px; }
+.model-group h4 { margin:0 0 8px; font-size:14px; }
+.model-group ul { margin:0; padding-left:18px; }
+.badge-free, .badge-paid { font-size:10px; border-radius:999px; padding:2px 6px; font-weight:700; }
+.badge-free { background:#16a34a; color:white; }
+.badge-paid { background:#475569; color:#e2e8f0; }
+
+@media (max-width: 768px) { .image-model-catalog { grid-template-columns: 1fr; } }
