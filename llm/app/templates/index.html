@@ -43,7 +43,8 @@
   </div>
   <label>Prompt <textarea id="image-prompt" rows="4" placeholder="Transforme essa foto em anime"></textarea></label>
   <label>Modelo
-    <select id="image-model-select"></select>
+    <input id="image-model-input" type="text" list="image-model-suggestions" placeholder="bytedance-seed/seedream-4.5" />
+    <datalist id="image-model-suggestions"></datalist>
   </label>
   <label class="image-upload-wrap">Imagem de entrada (opcional em texto -&gt; imagem)
     <input id="image-input-file" type="file" accept="image/png,image/jpeg,image/webp" />

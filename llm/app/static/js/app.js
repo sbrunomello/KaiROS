@@ -138,7 +138,7 @@ async function loadCapabilities() {
   }
 
   renderImageModelCatalog();
-  populateImageModelSelect();
+  hydrateImageModelInput();
 
   const defaultInput = document.getElementById('default_image_model');
   if (!defaultInput.value && modelCapabilities.default_image_model) {
@@ -146,9 +146,10 @@ async function loadCapabilities() {
   }
 }
 
-function populateImageModelSelect() {
-  const select = document.getElementById('image-model-select');
-  if (!select) return;
+function hydrateImageModelInput() {
+  const input = document.getElementById('image-model-input');
+  const suggestionList = document.getElementById('image-model-suggestions');
+  if (!input || !suggestionList) return;
 
   const safeDefaults = ['bytedance-seed/seedream-4.5'];
   const catalogModels = modelCapabilities.image_models || [];
@@ -156,8 +157,8 @@ function populateImageModelSelect() {
   const configuredDefault = (document.getElementById('default_image_model')?.value || '').trim();
   const preferredModel = configuredDefault || modelCapabilities.default_image_model || safeDefaults[0];
 
-  select.innerHTML = ids.map((modelId) => `<option value="${modelId}">${modelId}</option>`).join('');
-  if (ids.includes(preferredModel)) select.value = preferredModel;
+  suggestionList.innerHTML = ids.map((modelId) => `<option value="${modelId}"></option>`).join('');
+  if (!input.value.trim()) input.value = preferredModel;
 }
 
 function renderImageModelCatalog() {
@@ -259,8 +260,8 @@ async function generateImage() {
   setStatus('image-status', 'Gerando imagem...');
 
   try {
-    const selectedModel = document.getElementById('image-model-select').value;
-    if (!selectedModel) throw new Error('Nenhum modelo de imagem disponível.');
+    const selectedModel = document.getElementById('image-model-input').value.trim();
+    if (!selectedModel) throw new Error('Informe um modelo de imagem para continuar.');
 
     const form = new FormData();
     form.append('prompt', prompt);
@@ -311,6 +312,11 @@ document.getElementById('new-chat-btn').onclick = async () => { const res = awai
 document.getElementById('switch-user-btn').onclick = async () => { const username = getUsername(); if (!validateUsername(username)) return alert('Username inválido'); setStoredUsername(username); activeChatId = restoreActiveChatId(username); document.getElementById('messages').innerHTML = ''; await loadChats(); };
 document.getElementById('chat-form').onsubmit = async (e) => { e.preventDefault(); const input = document.getElementById('message-input'); const content = input.value.trim(); if (!content || !activeChatId) return; addMessage('user', content); input.value = ''; setStatus('status', 'Gerando resposta...'); try { const data = await fetchJson(apiUrl(`/api/chat/${activeChatId}/messages`), { method: 'POST', headers: { 'Content-Type': 'application/json', ...usernameHeaders() }, body: JSON.stringify({ content }) }); addMessage('assistant', data.assistant_message.content); await loadChats(); } catch (e2) { addMessage('assistant', `Erro: ${e2.message}`); } setStatus('status', ''); };
 document.getElementById('settings-form').onsubmit = saveSettings;
+document.getElementById('default_image_model').addEventListener('input', () => {
+  const imageModelInput = document.getElementById('image-model-input');
+  const configuredDefault = document.getElementById('default_image_model').value.trim();
+  if (imageModelInput && configuredDefault) imageModelInput.value = configuredDefault;
+});
 document.getElementById('refresh-models-btn').onclick = loadCapabilities;
 document.getElementById('generate-image-btn').onclick = generateImage;
 document.getElementById('image-input-file').onchange = (e) => renderInputPreview(e.target.files[0]);
