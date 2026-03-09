@@ -65,8 +65,6 @@ async function loadCapabilities() {
     };
   }
 
-  fillImageModelSelect('image-model', modelCapabilities.image_models_free, modelCapabilities.image_models_paid, modelCapabilities.default_image_model);
-  fillModelSelect('video-analysis-model', modelCapabilities.video_input_models);
   renderImageModelCatalog();
 
   const defaultInput = document.getElementById('default_image_model');
@@ -74,38 +72,6 @@ async function loadCapabilities() {
   if (!defaultInput.value && modelCapabilities.default_image_model) {
     defaultInput.value = modelCapabilities.default_image_model;
   }
-}
-
-function fillImageModelSelect(id, freeModels, paidModels, defaultModel) {
-  const el = document.getElementById(id); if (!el) return;
-  el.innerHTML = '';
-
-  const appendGroup = (label, models, isFree) => {
-    if (!models || !models.length) return;
-    const group = document.createElement('optgroup');
-    group.label = label;
-    models.forEach((m) => {
-      const op = document.createElement('option');
-      op.value = m.id;
-      op.textContent = `${m.name || m.id}${isFree ? ' [FREE]' : ' [PAGO]'}`;
-      group.appendChild(op);
-    });
-    el.appendChild(group);
-  };
-
-  appendGroup('Modelos gratuitos', freeModels, true);
-  appendGroup('Modelos pagos', paidModels, false);
-
-  if (!el.options.length) {
-    const op = document.createElement('option');
-    op.value = '';
-    op.textContent = 'Nenhum modelo de imagem disponível';
-    el.appendChild(op);
-  }
-
-  const preferred = defaultModel || '';
-  const hasPreferred = [...el.options].some((o) => o.value === preferred);
-  el.value = hasPreferred ? preferred : el.options[0].value;
 }
 
 function renderImageModelCatalog() {
@@ -130,17 +96,6 @@ function renderImageModelCatalog() {
       <ul>${listHtml(paid, false)}</ul>
     </div>
   `;
-}
-
-function fillModelSelect(id, models) {
-  const el = document.getElementById(id); if (!el) return;
-  el.innerHTML = '';
-  models.forEach((m) => {
-    const op = document.createElement('option');
-    op.value = m.id;
-    op.textContent = `${m.name || m.id} [VIDEO INPUT]`;
-    el.appendChild(op);
-  });
 }
 
 async function loadSettings() {
@@ -177,9 +132,10 @@ async function saveSettings(e) {
 async function generateImage() {
   setStatus('image-status', 'Gerando imagem...');
   try {
-    const selectedModel = document.getElementById('image-model').value || '';
+    // Usa exclusivamente o modelo configurado na aba de configurações.
+    const selectedModel = (document.getElementById('default_image_model').value || '').trim();
     if (!selectedModel) {
-      throw new Error('Nenhum modelo gratuito de imagem está disponível no catálogo atual.');
+      throw new Error('Defina o "Modelo padrão de imagem" na aba Configurações antes de gerar.');
     }
     const payload = { prompt: document.getElementById('image-prompt').value.trim(), model: selectedModel };
     const data = await fetchJson(apiUrl('/api/generate-image'), { method: 'POST', headers: { 'Content-Type': 'application/json', ...usernameHeaders() }, body: JSON.stringify(payload) });
@@ -195,7 +151,10 @@ async function analyzeVideo() {
   if (!file) { setStatus('video-status', 'Selecione um vídeo.'); return; }
   const form = new FormData();
   form.append('prompt', document.getElementById('video-prompt').value.trim());
-  form.append('model', document.getElementById('video-analysis-model').value);
+  // Usa exclusivamente o modelo configurado na aba de configurações.
+  const configuredVideoModel = (document.getElementById('default_video_analysis_model').value || '').trim();
+  if (!configuredVideoModel) { setStatus('video-status', 'Defina o "Modelo padrão vídeo análise" na aba Configurações.'); return; }
+  form.append('model', configuredVideoModel);
   form.append('video_file', file);
   try {
     const data = await fetchJson(apiUrl('/api/analyze-video'), { method: 'POST', headers: { ...usernameHeaders() }, body: form });

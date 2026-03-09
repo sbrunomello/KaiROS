@@ -42,12 +42,10 @@ def generate_image(payload: ImageGenerationIn, username: str = Depends(get_usern
         raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
 
     caps = ModelCatalogService().get_capabilities()
-    selected_model = (payload.model or "").strip()
+    # A geração de imagem deve usar exclusivamente o modelo definido nas configurações.
+    selected_model = (settings.default_image_model or "").strip()
     if not selected_model:
-        selected_model = caps.get("default_image_model") or ""
-
-    if not selected_model:
-        raise HTTPException(status_code=400, detail="Nenhum modelo gratuito de imagem está disponível no catálogo atual.")
+        raise HTTPException(status_code=400, detail="Defina um modelo padrão de imagem nas configurações.")
 
     model_ids = {m["id"] for m in caps["image_models"]}
     if selected_model not in model_ids:
@@ -92,14 +90,19 @@ async def analyze_video(
         raise HTTPException(status_code=400, detail=f"Vídeo excede limite de {settings.max_video_upload_mb}MB")
 
     caps = ModelCatalogService().get_capabilities()
+    # A análise de vídeo deve usar exclusivamente o modelo definido nas configurações.
+    selected_model = (settings.default_video_analysis_model or "").strip()
+    if not selected_model:
+        raise HTTPException(status_code=400, detail="Defina um modelo padrão de vídeo análise nas configurações.")
+
     model_ids = {m["id"] for m in caps["video_input_models"]}
-    if model not in model_ids:
-        raise HTTPException(status_code=400, detail="O modelo selecionado não suporta análise de vídeo por input.")
+    if selected_model not in model_ids:
+        raise HTTPException(status_code=400, detail="O modelo padrão de vídeo análise não suporta análise de vídeo por input.")
 
     try:
         result = VideoAnalysisService().analyze(
             settings=settings,
-            model=model,
+            model=selected_model,
             prompt=prompt,
             filename=video_file.filename or "video.mp4",
             content_type=video_file.content_type or "video/mp4",
@@ -114,7 +117,7 @@ async def analyze_video(
         HistoryService(db).add(
             username=username,
             item_type="video_analysis",
-            model_name=model,
+            model_name=selected_model,
             prompt=prompt,
             status="ok",
             response_text=result,
@@ -122,7 +125,7 @@ async def analyze_video(
             metadata_json=f"filename={video_file.filename}",
         )
 
-    return {"status": "ok", "model": model, "prompt": prompt, "result": result}
+    return {"status": "ok", "model": selected_model, "prompt": prompt, "result": result}
 
 
 @router.get("/history/multimodal", response_model=list[MultimodalHistoryOut])
