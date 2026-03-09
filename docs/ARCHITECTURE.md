@@ -6,7 +6,7 @@
    - Processo persistente com `wiringPi` + `softPwm`.
    - Lê alvo de ângulo do arquivo compartilhado e move servo suavemente.
 
-2. **App Python (`apps/turret`)**
+2. **App Python (`apps/bot`)**
    - Captura câmera, roda tracking HSV, disponibiliza MJPEG e APIs Flask.
    - Em modo auto, tracking calcula alvo angular e escreve no backend de servo.
    - Em modo manual, tracking não mexe no servo; apenas endpoints manuais controlam.

@@ -16,7 +16,7 @@ run-servo:
 	./scripts/run_servo_daemon.sh
 
 run-web:
-	./scripts/run_turret.sh
+	./scripts/run_bot.sh
 
 test:
 	$(PYTHON) -m pytest -q

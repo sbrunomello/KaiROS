@@ -1,5 +1,5 @@
-from apps.turret.tracking import compute_target_angle
-from apps.turret.utils import clamp
+from apps.bot.tracking import compute_target_angle
+from apps.bot.utils import clamp
 
 
 def test_clamp_angle():

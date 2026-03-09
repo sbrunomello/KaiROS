@@ -1,5 +1,5 @@
-from apps.turret.state import SharedState
-from apps.turret.web import build_app
+from apps.bot.state import SharedState
+from apps.bot.web import build_app
 
 
 class DummyServoService:
