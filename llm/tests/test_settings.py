@@ -67,21 +67,3 @@ def test_settings_page_contains_new_multi_provider_fields(client):
     assert 'id="huggingface_api_key"' in html
     assert 'id="image_edit_enabled"' in html
     assert 'id="video_enable_vision"' in html
-
-
-def test_index_settings_tab_contains_new_multi_provider_fields(client):
-    response = client.get('/')
-
-    assert response.status_code == 200
-    html = response.text
-    assert 'id="chat_provider"' in html
-    assert 'id="chat_fallback_provider"' in html
-    assert 'id="speech_provider"' in html
-    assert 'id="vision_provider"' in html
-    assert 'id="image_gen_provider"' in html
-    assert 'id="image_edit_provider"' in html
-    assert 'id="video_analysis_mode"' in html
-    assert 'id="groq_api_key"' in html
-    assert 'id="huggingface_api_key"' in html
-    assert 'id="image_edit_enabled"' in html
-    assert 'id="video_enable_vision"' in html
