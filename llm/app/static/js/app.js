@@ -1,10 +1,36 @@
 let activeChatId = null;
 
+/**
+ * Keep username selection local, no external auth (local-only multi-user isolation).
+ */
+function getStoredUsername() {
+  return localStorage.getItem('kairos_username') || 'usuario1';
+}
+
+function setStoredUsername(username) {
+  localStorage.setItem('kairos_username', username);
+}
+
+function getUsername() {
+  const input = document.getElementById('username-input');
+  return (input?.value || getStoredUsername()).trim();
+}
+
+function usernameHeaders() {
+  return { 'X-Username': getUsername() };
+}
+
+function validateUsername(username) {
+  return /^[a-zA-Z0-9_-]{3,32}$/.test(username);
+}
+
 async function loadChats() {
-  const res = await fetch('/api/chats');
+  const username = getUsername();
+  const res = await fetch('/api/chats', { headers: usernameHeaders() });
   const chats = await res.json();
   const list = document.getElementById('chat-list');
   list.innerHTML = '';
+
   chats.forEach(chat => {
     const li = document.createElement('li');
     li.textContent = chat.title;
@@ -12,12 +38,21 @@ async function loadChats() {
     li.onclick = () => openChat(chat.id);
     list.appendChild(li);
   });
-  if (!activeChatId && chats.length) openChat(chats[0].id);
+
+  document.getElementById('active-user').textContent = `Usuário: ${username}`;
+
+  if (!activeChatId && chats.length) {
+    openChat(chats[0].id);
+  }
 }
 
 async function openChat(id) {
   activeChatId = id;
-  const res = await fetch(`/api/chats/${id}`);
+  const res = await fetch(`/api/chats/${id}`, { headers: usernameHeaders() });
+  if (!res.ok) {
+    const body = await res.json();
+    throw new Error(body.detail || 'Falha ao abrir conversa');
+  }
   const chat = await res.json();
   const messagesEl = document.getElementById('messages');
   messagesEl.innerHTML = '';
@@ -34,10 +69,31 @@ function addMessage(role, content) {
 }
 
 document.getElementById('new-chat-btn').onclick = async () => {
-  const res = await fetch('/api/chats', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({})});
+  const username = getUsername();
+  if (!validateUsername(username)) {
+    alert("Username inválido. Use 3-32 caracteres com letras, números, '_' ou '-'.");
+    return;
+  }
+  const res = await fetch('/api/chats', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...usernameHeaders() },
+    body: JSON.stringify({}),
+  });
   const chat = await res.json();
   await loadChats();
   await openChat(chat.id);
+};
+
+document.getElementById('switch-user-btn').onclick = async () => {
+  const username = getUsername();
+  if (!validateUsername(username)) {
+    alert("Username inválido. Use 3-32 caracteres com letras, números, '_' ou '-'.");
+    return;
+  }
+  setStoredUsername(username);
+  activeChatId = null;
+  document.getElementById('messages').innerHTML = '';
+  await loadChats();
 };
 
 document.getElementById('chat-form').onsubmit = async (e) => {
@@ -46,12 +102,16 @@ document.getElementById('chat-form').onsubmit = async (e) => {
   const status = document.getElementById('status');
   const content = input.value.trim();
   if (!content || !activeChatId) return;
+
   addMessage('user', content);
   input.value = '';
   status.textContent = 'Gerando resposta...';
+
   try {
     const res = await fetch(`/api/chat/${activeChatId}/messages`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...usernameHeaders() },
+      body: JSON.stringify({ content }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Erro desconhecido');
@@ -60,9 +120,15 @@ document.getElementById('chat-form').onsubmit = async (e) => {
   } catch (err) {
     addMessage('assistant', `Erro: ${err.message}`);
   }
+
   status.textContent = '';
   const messagesEl = document.getElementById('messages');
   messagesEl.scrollTop = messagesEl.scrollHeight;
 };
+
+(function initUserControls() {
+  const usernameInput = document.getElementById('username-input');
+  usernameInput.value = getStoredUsername();
+})();
 
 loadChats();

@@ -20,16 +20,16 @@ class ChatService:
         self.router = ModelRouter()
         self.llm_service = llm_service
 
-    def send_message(self, conversation_id: int, content: str) -> tuple[Message, Message]:
+    def send_message(self, conversation_id: int, username: str, content: str) -> tuple[Message, Message]:
         if len(content) > self.config.max_message_chars:
             raise ValueError(f"Mensagem excede limite de {self.config.max_message_chars} caracteres")
 
-        conversation = self.conv_service.get_conversation(conversation_id)
+        conversation = self.conv_service.get_conversation(conversation_id, username)
         if not conversation:
             raise ValueError("Conversa não encontrada")
 
         settings = self.settings_service.get()
-        user_msg = self.conv_service.add_message(conversation_id, "user", content)
+        user_msg = self.conv_service.add_message(conversation_id, username, "user", content)
 
         history = [{"role": msg.role, "content": msg.content} for msg in conversation.messages]
         prompt_messages = self.prompt_service.build_messages(settings.system_prompt, history, content)
@@ -44,6 +44,7 @@ class ChatService:
 
         assistant_msg = self.conv_service.add_message(
             conversation_id,
+            username,
             "assistant",
             result.content,
             model_used=result.model_used,

@@ -10,6 +10,7 @@ Aplicação web de chat estilo ChatGPT, **isolada em `./llm`**, com FastAPI + Ji
 - Configuração de API key OpenRouter
 - Campo de modelo **livre** (sem dropdown fixo)
 - Persistência local de conversas, mensagens e settings
+- Isolamento local por usuário (username) para uso compartilhado no mesmo dispositivo
 - Healthcheck (`/healthz`) e status (`/status`)
 - Testes automatizados com `pytest`
 
@@ -91,7 +92,7 @@ Após instalação:
 ```
 
 ## Limitações atuais
-- Sem autenticação/multiusuário
+- Login local simples por username (sem senha/JWT, proposital para uso offline/local)
 - Sem streaming de tokens
 - Sem integração com robô (proposital)
 

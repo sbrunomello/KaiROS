@@ -19,6 +19,7 @@ class MessageOut(BaseModel):
 
 class ConversationOut(BaseModel):
     id: int
+    username: str
     title: str
     created_at: datetime
     updated_at: datetime

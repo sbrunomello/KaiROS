@@ -11,33 +11,46 @@ class ConversationService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create_conversation(self, title: str | None = None) -> Conversation:
-        conversation = Conversation(title=title or "Novo chat")
+    def create_conversation(self, username: str, title: str | None = None) -> Conversation:
+        conversation = Conversation(username=username, title=title or "Novo chat")
         self.db.add(conversation)
         self.db.commit()
         self.db.refresh(conversation)
         return conversation
 
-    def list_conversations(self) -> list[Conversation]:
-        return self.db.query(Conversation).order_by(desc(Conversation.updated_at)).all()
+    def list_conversations(self, username: str) -> list[Conversation]:
+        return (
+            self.db.query(Conversation)
+            .filter(Conversation.username == username)
+            .order_by(desc(Conversation.updated_at))
+            .all()
+        )
 
-    def get_conversation(self, conversation_id: int) -> Conversation | None:
+    def get_conversation(self, conversation_id: int, username: str) -> Conversation | None:
         return (
             self.db.query(Conversation)
             .options(joinedload(Conversation.messages))
-            .filter(Conversation.id == conversation_id)
+            .filter(Conversation.id == conversation_id, Conversation.username == username)
             .first()
         )
 
     def add_message(
         self,
         conversation_id: int,
+        username: str,
         role: str,
         content: str,
         model_used: str | None = None,
         status: str = "ok",
         error_message: str | None = None,
     ) -> Message:
+        conversation = self.db.query(Conversation).filter(
+            Conversation.id == conversation_id,
+            Conversation.username == username,
+        ).first()
+        if not conversation:
+            raise ValueError("Conversa não encontrada para este usuário")
+
         message = Message(
             conversation_id=conversation_id,
             role=role,
@@ -47,11 +60,9 @@ class ConversationService:
             error_message=error_message,
         )
         self.db.add(message)
-        conversation = self.db.get(Conversation, conversation_id)
-        if conversation:
-            if conversation.title == "Novo chat" and role == "user":
-                conversation.title = content[:60].strip() or "Novo chat"
-            conversation.updated_at = datetime.now(timezone.utc)
+        if conversation.title == "Novo chat" and role == "user":
+            conversation.title = content[:60].strip() or "Novo chat"
+        conversation.updated_at = datetime.now(timezone.utc)
         self.db.commit()
         self.db.refresh(message)
         return message
