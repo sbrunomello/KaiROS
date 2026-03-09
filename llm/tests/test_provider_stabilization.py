@@ -125,12 +125,12 @@ def test_video_pipeline_basic(monkeypatch):
     monkeypatch.setattr(service.audio_extractor, "extract", lambda video_path, ffmpeg_binary_path: "/tmp/audio.wav")
     monkeypatch.setattr(service.frame_sampler, "sample", lambda video_path, interval_seconds, ffmpeg_binary_path='ffmpeg': [])
 
-    class SpeechOk:
-        text = "transcript"
+    from llm.app.providers.base import SpeechResult
 
     registry = SimpleNamespace(
-        resolve_speech=lambda settings: SimpleNamespace(transcribe=lambda audio_path, options: SpeechOk()),
+        resolve_speech=lambda settings: SimpleNamespace(transcribe=lambda audio_path, options: SpeechResult(text="transcript", model_used="groq-whisper")),
         resolve_chat=lambda settings: SimpleNamespace(generate=lambda messages, options: SimpleNamespace(content="final", model_used="groq-chat")),
+        speech_providers={"local": SimpleNamespace(transcribe=lambda audio_path, options: SpeechResult(text="local", model_used="local-whisper.cpp"))},
     )
     service.registry = registry
 
@@ -192,3 +192,45 @@ def test_frame_sampling_uses_ffmpeg_binary_path(monkeypatch, tmp_path):
     frames = FrameSamplingService().sample(video_path, 2, ffmpeg_binary_path="/usr/local/bin/ffmpeg")
     assert captured["cmd"][0] == "/usr/local/bin/ffmpeg"
     assert len(frames) == 1
+
+
+def test_video_pipeline_uses_speech_service_fallback(monkeypatch):
+    service = VideoAnalysisService()
+    monkeypatch.setattr(service.audio_extractor, "extract", lambda video_path, ffmpeg_binary_path: "/tmp/audio.wav")
+
+    captured = {}
+
+    def fake_transcribe(self, audio_path, settings):
+        return {"text": "fallback transcript", "model": "local-whisper.cpp", "provider": "local"}
+
+    def fake_chat_generate(messages, options):
+        captured["messages"] = messages
+        return SimpleNamespace(content="ok", model_used="groq-chat")
+
+    registry = SimpleNamespace(
+        resolve_chat=lambda settings: SimpleNamespace(generate=fake_chat_generate),
+    )
+    service.registry = registry
+
+    monkeypatch.setattr("llm.app.services.video_analysis_service.SpeechService.transcribe", fake_transcribe)
+
+    settings = SimpleNamespace(
+        video_analysis_mode="pipeline",
+        ffmpeg_binary_path="ffmpeg",
+        video_enable_vision=False,
+        video_frame_sample_seconds=5,
+        speech_provider="groq",
+    )
+
+    result = service.analyze(
+        settings=settings,
+        model="unused",
+        prompt="resuma",
+        filename="video.mp4",
+        content_type="video/mp4",
+        raw_bytes=b"video",
+        reasoning_enabled=False,
+    )
+
+    assert result.text == "ok"
+    assert "fallback transcript" in captured["messages"][0]["content"]

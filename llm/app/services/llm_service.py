@@ -26,7 +26,11 @@ class MockProvider:
 
 
 class ResilientLLMService:
-    """Wrap chat provider with retries, provider fallback and safe user response."""
+    """Wrap chat provider with provider fallback and safe user response.
+
+    Note: this service intentionally does not retry the same provider;
+    it performs provider-level fallback only.
+    """
 
     def __init__(self, registry: ProviderRegistry):
         self.registry = registry

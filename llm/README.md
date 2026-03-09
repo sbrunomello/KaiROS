@@ -5,9 +5,9 @@ Aplicação web multimodal em `./llm` com FastAPI + Jinja + SQLite.
 ## Recursos
 - Abas: **Chat**, **Imagem**, **Vídeo**, **Configurações**
 - Chat original preservado (histórico por usuário local)
-- Geração de imagem via OpenRouter (`/api/generate-image`)
+- Geração de imagem via provider configurável (`openrouter` legado ou `hf`) em `/api/generate-image`
 - Análise de vídeo com modo `legacy` (OpenRouter) ou `pipeline` desacoplado (`/api/analyze-video`)
-- Análise de imagem via Groq Vision (`/api/analyze-image`)
+- Análise de imagem via vision provider configurável (`groq` ou `openrouter`) em `/api/analyze-image`
 - Speech-to-text via Groq/local whisper.cpp (`/api/transcribe-audio`)
 - Catálogo dinâmico de modelos e capacidades (`/api/models/capabilities`)
 - Histórico multimodal (`/api/history/multimodal`)
@@ -57,3 +57,8 @@ python -m pytest -q llm/tests
 ## Migração de providers
 
 Veja `docs/provider-migration.md` para o plano incremental e novas configurações.
+
+## Comportamento de fallback/retry
+
+- Chat usa **fallback entre providers** (primário + fallback configurável).
+- Não há retry automático por provider nesta etapa; o comportamento é tentativa no provider primário e fallback entre providers quando aplicável.

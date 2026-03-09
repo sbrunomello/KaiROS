@@ -7,6 +7,8 @@ from .chat.groq_chat_provider import GroqChatProvider
 from .chat.openrouter_chat_provider import OpenRouterChatProvider
 from .image.hf_image_edit_provider import HFImageEditProvider
 from .image.hf_image_gen_provider import HFImageGenProvider
+from .image.openrouter_image_edit_provider import OpenRouterImageEditProvider
+from .image.openrouter_image_gen_provider import OpenRouterImageGenProvider
 from .speech.groq_speech_provider import GroqSpeechProvider
 from .speech.local_whisper_provider import LocalWhisperProvider
 from .vision.groq_vision_provider import GroqVisionProvider
@@ -28,9 +30,11 @@ class ProviderRegistry:
         self.vision_providers = {"groq": GroqVisionProvider(), "openrouter": OpenRouterVisionProvider()}
         self.image_gen_providers = {
             "hf": HFImageGenProvider(),
+            "openrouter": OpenRouterImageGenProvider(),
         }
         self.image_edit_providers = {
             "hf": HFImageEditProvider(),
+            "openrouter": OpenRouterImageEditProvider(),
         }
 
     def chat_provider_name(self, settings: Any) -> str:
@@ -68,7 +72,7 @@ class ProviderRegistry:
         return provider
 
     def resolve_image_edit(self, settings: Any):
-        name = (getattr(settings, "image_edit_provider", "hf") or "hf").lower()
+        name = (getattr(settings, "image_edit_provider", "openrouter") or "openrouter").lower()
         provider = self.image_edit_providers.get(name)
         if not provider:
             raise ValueError(f"Image edit provider não suportado: {name}")

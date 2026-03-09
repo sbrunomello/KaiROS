@@ -11,6 +11,7 @@ from typing import Any
 from ..models import Settings
 from ..providers.registry import ProviderRegistry
 from .openrouter_client import OpenRouterClient
+from .speech_service import SpeechService
 from .video_input_encoder import VideoInputEncoder
 
 logger = logging.getLogger(__name__)
@@ -136,8 +137,8 @@ class VideoAnalysisService:
         frames: list[str] = []
         try:
             audio_path = self.audio_extractor.extract(str(video_path), settings.ffmpeg_binary_path)
-            speech = self.registry.resolve_speech(settings).transcribe(audio_path, settings.__dict__.copy())
-            transcript = speech.text
+            speech_result = SpeechService(registry=self.registry).transcribe(audio_path, settings)
+            transcript = speech_result["text"]
 
             visual_context = ""
             if settings.video_enable_vision:
