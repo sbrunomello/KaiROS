@@ -33,7 +33,14 @@ def main():
     try:
         run_binary_dependency_preflight(detector_enabled=cfg["detector"].get("enabled", True))
     except PreflightError as exc:
-        raise SystemExit(f"[KAIROS PRECHECK] {exc}") from exc
+        if exc.failure.detector_related:
+            # Fallback resiliente para SBCs: se YOLO/torch falhar por binário incompatível,
+            # o serviço web ainda sobe em modo degradado para inspeção/diagnóstico remoto.
+            cfg["detector"]["enabled"] = False
+            print(f"[KAIROS PRECHECK] {exc}")
+            print("[KAIROS PRECHECK] Detector desabilitado automaticamente; iniciando somente modo web/câmera.")
+        else:
+            raise SystemExit(f"[KAIROS PRECHECK] {exc}") from exc
 
     run_service(cfg)
 
