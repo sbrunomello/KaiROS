@@ -116,11 +116,17 @@ class ImageGenerationService:
                     tmp.write(input_image_bytes or b"")
                     tmp_path = Path(tmp.name)
                 try:
-                    result = self.registry.resolve_image_edit(settings).edit(str(tmp_path), prompt, options)
+                    try:
+                        result = self.registry.resolve_image_edit(settings).edit(str(tmp_path), prompt, options)
+                    except ValueError as exc:
+                        raise ImageGenerationError(str(exc)) from exc
                 finally:
                     tmp_path.unlink(missing_ok=True)
             else:
-                result = self.registry.resolve_image_gen(settings).generate(prompt, options)
+                try:
+                    result = self.registry.resolve_image_gen(settings).generate(prompt, options)
+                except ValueError as exc:
+                    raise ImageGenerationError(str(exc)) from exc
             mime_type, image_bytes, text = result.mime_type, result.image_bytes, result.text
 
         saved_asset = self.generated_storage.save_generated_image(image_bytes=image_bytes, mime_type=mime_type)

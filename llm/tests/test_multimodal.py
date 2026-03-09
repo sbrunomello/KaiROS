@@ -196,3 +196,51 @@ def test_chat_regression_still_works(client):
     cid = chat.json()['id']
     msg = client.post(f'/api/chat/{cid}/messages', headers={'X-Username': 'usuario1'}, json={'content': 'oi'})
     assert msg.status_code in {200, 502}
+
+
+def test_non_openrouter_provider_value_error_is_mapped_to_image_generation_error(tmp_path):
+    class Settings:
+        image_gen_provider = "hf"
+
+    service = _image_service(tmp_path)
+
+    class FakeProvider:
+        def generate(self, prompt, options):
+            raise ValueError("Modelo do Hugging Face indisponível (410 Gone)")
+
+    service.registry.resolve_image_gen = lambda settings: FakeProvider()
+
+    try:
+        service.generate(settings=Settings(), model="kpsss34/FHDR_Uncensored", prompt="cat")
+    except ImageGenerationError as exc:
+        assert "410 Gone" in str(exc)
+    else:
+        raise AssertionError("Expected ImageGenerationError")
+
+
+def test_generate_image_hf_gone_returns_400(client, monkeypatch):
+    client.put('/api/settings', json={
+        'huggingface_api_key': 'hf',
+        'image_gen_provider': 'hf',
+        'openrouter_api_key': '',
+        'model_name': 'openrouter/auto',
+        'temperature': 0.7,
+        'system_prompt': 'x',
+        'assistant_name': 'Kai',
+        'http_referer': '',
+        'x_title': '',
+        'default_image_model': 'kpsss34/FHDR_Uncensored',
+        'default_video_analysis_model': 'vid-model',
+        'default_video_generation_model': '',
+        'request_timeout_seconds': 25,
+        'max_video_upload_mb': 20,
+        'persist_multimodal_history': True,
+    })
+
+    def raise_gone(*_args, **_kwargs):
+        raise ImageGenerationError('Modelo do Hugging Face indisponível (410 Gone): kpsss34/FHDR_Uncensored')
+
+    monkeypatch.setattr('llm.app.services.image_generation_service.ImageGenerationService.generate', raise_gone)
+    res = client.post('/api/generate-image', headers={'X-Username': 'usuario1'}, json={'prompt': 'cat'})
+    assert res.status_code == 400
+    assert '410 Gone' in res.json()['detail']
