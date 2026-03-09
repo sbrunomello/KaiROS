@@ -157,6 +157,40 @@ def test_error_on_invalid_mime_image_upload(client):
     assert res.status_code == 400
 
 
+def test_image_to_image_with_valid_upload_is_accepted(client, monkeypatch):
+    client.put('/api/settings', json={
+        'openrouter_api_key': 'k', 'model_name': 'openrouter/auto', 'temperature': 0.7,
+        'system_prompt': 'x', 'assistant_name': 'Kai', 'http_referer': '', 'x_title': '',
+        'default_image_model': 'bytedance-seed/seedream-4.5', 'default_video_analysis_model': 'vid-model',
+        'default_video_generation_model': '', 'request_timeout_seconds': 25,
+        'max_video_upload_mb': 20, 'persist_multimodal_history': True,
+    })
+
+    def fake_generate(*_args, **kwargs):
+        assert kwargs.get('mode') == 'image_to_image'
+        assert kwargs.get('input_image_bytes') == b'fake-png'
+        return {
+            'image_url': '/generated-images/out.png',
+            'file_path': '/tmp/out.png',
+            'mime_type': 'image/png',
+            'size_bytes': 10,
+            'text': 'ok',
+            'input_image_url': '/input-images/in.png',
+        }
+
+    monkeypatch.setattr('llm.app.services.image_generation_service.ImageGenerationService.generate', fake_generate)
+    files = {'image': ('file.png', BytesIO(b'fake-png'), 'image/png')}
+
+    res = client.post(
+        '/api/generate-image',
+        headers={'X-Username': 'usuario1'},
+        data={'prompt': 'cat', 'model': 'bytedance-seed/seedream-4.5', 'mode': 'image_to_image'},
+        files=files,
+    )
+    assert res.status_code == 200
+    assert res.json()['mode'] == 'image_to_image'
+
+
 def test_chat_regression_still_works(client):
     chat = client.post('/api/chats', headers={'X-Username': 'usuario1'}, json={})
     cid = chat.json()['id']
