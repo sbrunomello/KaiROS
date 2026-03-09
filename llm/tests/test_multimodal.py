@@ -46,8 +46,23 @@ def test_model_catalog_does_not_classify_text_model_as_image():
 def test_image_payload_matches_openrouter_chat_completion_shape():
     payload = ImageGenerationService().build_payload(model="img:free", prompt="gato")
     assert payload["model"] == "img:free"
-    assert payload["modalities"] == ["text", "image"]
-    assert payload["messages"][0]["content"][0] == {"type": "text", "text": "gato"}
+    assert payload["modalities"] == ["image"]
+    assert payload["messages"][0]["content"] == "gato"
+
+
+def test_extract_image_url_supports_nested_images_payload():
+    data = {
+        "choices": [
+            {
+                "message": {
+                    "images": [
+                        {"image_url": {"url": "data:image/png;base64,abc"}}
+                    ]
+                }
+            }
+        ]
+    }
+    assert ImageGenerationService()._extract_image_url(data) == "data:image/png;base64,abc"
 
 
 def test_generate_image_openrouter_error_returns_real_body(client, monkeypatch):

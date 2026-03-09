@@ -107,10 +107,12 @@ class ImageGenerationService:
         self.client = client or OpenRouterClient()
 
     def build_payload(self, *, model: str, prompt: str) -> dict[str, Any]:
+        # OpenRouter image generation should explicitly request image-only output
+        # to avoid models returning only textual completions.
         return {
             "model": model,
-            "modalities": ["text", "image"],
-            "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
+            "modalities": ["image"],
+            "messages": [{"role": "user", "content": prompt}],
         }
 
     def generate(self, *, settings: Settings, model: str, prompt: str) -> dict[str, str]:
@@ -155,7 +157,12 @@ class ImageGenerationService:
         if isinstance(message.get("images"), list) and message["images"]:
             first = message["images"][0]
             if isinstance(first, dict):
-                return first.get("image_url") or first.get("url")
+                image_url = first.get("image_url")
+                if isinstance(image_url, dict):
+                    return image_url.get("url")
+                if isinstance(image_url, str):
+                    return image_url
+                return first.get("url")
             if isinstance(first, str):
                 return first
         return data.get("image_url")
