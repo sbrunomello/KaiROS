@@ -6,8 +6,10 @@ from ..base import ImageResult
 
 
 class HFImageGenProvider:
-    def __init__(self, base_url: str = "https://api-inference.huggingface.co/models"):
-        self.base_url = base_url
+    # Endpoint oficial dos Inference Providers da Hugging Face.
+    # Referência: https://huggingface.co/docs/api-inference/index
+    def __init__(self, base_url: str = "https://router.huggingface.co/hf-inference/models"):
+        self.base_url = base_url.rstrip("/")
 
     def generate(self, prompt: str, options: dict) -> ImageResult:
         api_key = options.get("huggingface_api_key", "")
