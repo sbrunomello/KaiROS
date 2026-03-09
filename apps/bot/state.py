@@ -9,13 +9,15 @@ from typing import Optional
 
 import cv2
 
+from .runtime.settings import RuntimeSettingsStore, VisionRuntimeSettings
+from .telemetry.pipeline_metrics import MetricsStore
+
 
 @dataclass
 class RuntimeState:
     mode: str = "auto"
     target_angle: float = 90.0
     servo_enabled: bool = True
-    color_name: str = "green"
     desired_camera_index: int = 0
     active_camera_index: Optional[int] = None
     resolution: str = "0x0"
@@ -28,12 +30,14 @@ class RuntimeState:
 
 
 class SharedState:
-    def __init__(self, jpeg_quality: int, show_mask: bool):
+    def __init__(self, jpeg_quality: int, show_mask: bool, runtime_settings: RuntimeSettingsStore):
         self._lock = threading.Lock()
         self.jpeg_quality = jpeg_quality
         self.show_mask = show_mask
         self.running = True
         self.runtime = RuntimeState()
+        self.runtime_settings = runtime_settings
+        self.metrics = MetricsStore()
 
     def update_visuals(self, frame, mask, resolution: str):
         with self._lock:
@@ -50,10 +54,6 @@ class SharedState:
     def mark_seen(self):
         with self._lock:
             self.runtime.last_seen_ts = time.time()
-
-    def set_color(self, color_name: str):
-        with self._lock:
-            self.runtime.color_name = color_name
 
     def set_desired_camera_index(self, camera_index: int):
         with self._lock:
@@ -78,6 +78,9 @@ class SharedState:
     def get_runtime_snapshot(self) -> RuntimeState:
         with self._lock:
             return RuntimeState(**self.runtime.__dict__)
+
+    def get_runtime_settings_snapshot(self) -> VisionRuntimeSettings:
+        return self.runtime_settings.snapshot()
 
     def get_jpeg_frame(self):
         with self._lock:

@@ -1,4 +1,4 @@
-"""Flask app + UI simples para controle e monitoramento."""
+"""Flask app + UI para runtime de segmentação YOLO nano."""
 
 from __future__ import annotations
 
@@ -6,144 +6,79 @@ import time
 
 from flask import Flask, Response, jsonify, render_template_string, request
 
-from .tracking import COLOR_PRESETS
-
 HTML = """
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>KaiROS Bot Runtime V0</title>
-  <style>
-    body { background:#111; color:#eee; font-family:Arial,sans-serif; margin:16px; }
-    .row { display:flex; gap:16px; flex-wrap:wrap; }
-    .card { background:#1b1b1b; border-radius:12px; padding:12px; }
-    img { width:100%; max-width:520px; border-radius:8px; }
-    button, select, input { margin:4px; padding:8px 12px; border-radius:8px; border:1px solid #333; background:#222; color:#eee; }
-    label { display:inline-flex; align-items:center; gap:8px; margin-right:8px; }
-    code { background:#222; padding:2px 6px; border-radius:6px; }
-  </style>
-</head>
+<!doctype html><html><head><meta charset="utf-8"/><title>KaiROS Vision</title>
+<style>
+body { background:#111; color:#eee; font-family:Arial,sans-serif; margin:16px; }
+.row { display:flex; gap:16px; flex-wrap:wrap; }
+.card { background:#1b1b1b; border-radius:12px; padding:12px; min-width:280px; }
+img { width:100%; max-width:720px; border-radius:8px; }
+button, select, input { margin:4px; padding:8px 12px; border-radius:8px; border:1px solid #333; background:#222; color:#eee; }
+label { display:flex; align-items:center; justify-content:space-between; margin:8px 0; gap:10px; }
+small.warn { color:#ff7e7e; font-weight:bold; }
+</style></head>
 <body>
-  <h1>KaiROS Bot Runtime V0 - Modular</h1>
-  <p>
-    mode=<code id="mode"></code>
-    color=<code id="color"></code>
-    camera=<code id="camera"></code>
-    servo=<code id="servo"></code>
-    angle=<code id="angle"></code>
-    res=<code id="res"></code>
-    vision=<code id="visionStatus"></code>
-    vision_fps=<code id="visionFps"></code>
-  </p>
-  <div class="row">
-    <div class="card"><h3>Video</h3><img src="/video_feed" /></div>
-    <div class="card"><h3>Mask</h3><img src="/mask_feed" /></div>
-  </div>
+<h2>KaiROS - YOLO Nano Segmentation</h2>
+<div class="row">
+  <div class="card"><h3>Video</h3><img src="/video_feed" /></div>
+  <div class="card"><h3>Mask Stream</h3><img src="/mask_feed" /></div>
+</div>
+<div class="row">
   <div class="card">
-    <button onclick="post('/api/mode/auto')">AUTO</button>
-    <button onclick="post('/api/mode/manual')">MANUAL</button>
-    <button onclick="post('/api/servo/center')">CENTER</button>
-    <button onclick="setAngle(70)">70°</button>
-    <button onclick="setAngle(90)">90°</button>
-    <button onclick="setAngle(110)">110°</button>
-  </div>
-  <div class="card">
-    <h3>Tracking em tempo real</h3>
-    <label>
-      Device:
-      <input id="cameraIndexInput" type="number" min="0" step="1" placeholder="0" style="width:80px;"/>
-      <button onclick="setCamera()">Aplicar</button>
-    </label>
-    <label>
-      Target:
-      <select id="targetColor" onchange="setTargetColor()"></select>
-    </label>
+    <h3>Controles em tempo real</h3>
+    <label>Classe alvo<select id="targetClass"></select></label>
+    <label>Inferência a cada N frames<input id="inferN" type="number" min="1" step="1"/></label>
+    <label><span>Mostrar máscara</span><input id="drawMask" type="checkbox"/></label>
+    <label><span>Mostrar bounding box</span><input id="drawBbox" type="checkbox"/></label>
+    <label><span>Mostrar contorno</span><input id="drawContour" type="checkbox"/></label>
+    <label><span>Mostrar label/conf</span><input id="drawLabel" type="checkbox"/></label>
+    <button onclick="saveRuntime()">Aplicar runtime</button>
     <small id="feedback"></small>
   </div>
-  <script>
-    async function post(url, body={}) {
-      const response = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-      if(!response.ok){
-        const data = await response.json().catch(()=>({error:'request_failed'}));
-        throw new Error(data.error || 'request_failed');
-      }
-      return response.json();
-    }
-
-    function showFeedback(message, isError=false){
-      feedback.textContent = message;
-      feedback.style.color = isError ? '#ff6b6b' : '#7dff9f';
-      setTimeout(()=>{ feedback.textContent=''; }, 1800);
-    }
-
-    async function setAngle(angle){
-      try {
-        await post('/api/servo/angle',{angle});
-        showFeedback(`Ângulo atualizado para ${angle}°`);
-      } catch (error) {
-        showFeedback(`Falha ao atualizar ângulo: ${error.message}`, true);
-      }
-    }
-
-    async function setCamera(){
-      const value = Number.parseInt(cameraIndexInput.value, 10);
-      if(Number.isNaN(value) || value < 0){
-        showFeedback('Informe um índice de câmera válido (>= 0).', true);
-        return;
-      }
-      try {
-        await post('/api/camera/index', { index: value });
-        showFeedback(`Solicitada troca para câmera ${value}.`);
-        await refresh();
-      } catch (error) {
-        showFeedback(`Falha ao trocar câmera: ${error.message}`, true);
-      }
-    }
-
-    async function setTargetColor(){
-      const colorName = targetColor.value;
-      try {
-        await post('/api/tracking/color', { color: colorName });
-        showFeedback(`Target alterado para ${colorName}.`);
-        await refresh();
-      } catch (error) {
-        showFeedback(`Falha ao alterar target: ${error.message}`, true);
-      }
-    }
-
-    async function refresh(){
-      const r = await fetch('/health');
-      const d = await r.json();
-      mode.textContent = d.mode;
-      color.textContent = d.color;
-      camera.textContent = `${d.active_camera_index ?? '-'} (wanted ${d.desired_camera_index})`;
-      servo.textContent = d.servo_enabled;
-      angle.textContent = d.target_angle.toFixed(1);
-      res.textContent = d.resolution;
-      visionStatus.textContent = d.modules.vision.running ? "up" : `down (${d.modules.vision.last_error || "unknown"})`;
-      visionFps.textContent = d.modules.vision.fps.toFixed(2);
-
-      if(document.activeElement !== cameraIndexInput){
-        cameraIndexInput.value = d.desired_camera_index;
-      }
-
-      if(targetColor.options.length === 0){
-        d.available_colors.forEach((colorOpt) => {
-          const option = document.createElement('option');
-          option.value = colorOpt;
-          option.textContent = colorOpt;
-          targetColor.appendChild(option);
-        });
-      }
-      targetColor.value = d.color;
-    }
-
-    setInterval(refresh, 700);
-    refresh();
-  </script>
-</body>
-</html>
+  <div class="card">
+    <h3>Métricas</h3>
+    <div>FPS frame: <b id="frameFps"></b></div>
+    <div>Inferência média (ms): <b id="infAvg"></b></div>
+    <div>Inferência/s: <b id="infFps"></b></div>
+    <div>Classe alvo atual: <b id="targetNow"></b></div>
+    <div>N atual: <b id="nNow"></b></div>
+    <div>Status alvo: <b id="targetStatus"></b></div>
+    <div>Confidence: <b id="conf"></b></div>
+    <div>Área máscara: <b id="area"></b></div>
+    <div>Estabilidade p95 (ms): <b id="p95"></b></div>
+    <small id="targetWarn" class="warn"></small>
+  </div>
+</div>
+<script>
+async function jget(url){ const r = await fetch(url); return r.json(); }
+async function jpost(url, body){ const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return r.json(); }
+function toast(msg, err=false){ feedback.textContent=msg; feedback.style.color = err?'#ff6b6b':'#8dff95'; setTimeout(()=>feedback.textContent='',2000); }
+async function loadClasses(){
+  const data = await jget('/api/vision/classes');
+  targetClass.innerHTML='';
+  data.classes.forEach((name)=>{ const o=document.createElement('option'); o.value=name; o.textContent=name; targetClass.appendChild(o);});
+}
+async function loadRuntime(){
+  const d = await jget('/api/vision/runtime');
+  targetClass.value=d.target_class; inferN.value=d.infer_every_n_frames;
+  drawMask.checked=d.draw_mask; drawBbox.checked=d.draw_bbox; drawContour.checked=d.draw_contour; drawLabel.checked=d.draw_label;
+}
+async function saveRuntime(){
+  const body={ target_class:targetClass.value, infer_every_n_frames:Number(inferN.value), draw_mask:drawMask.checked, draw_bbox:drawBbox.checked, draw_contour:drawContour.checked, draw_label:drawLabel.checked };
+  const r = await jpost('/api/vision/runtime', body);
+  toast(r.ok ? 'Runtime atualizado' : 'Falha ao atualizar', !r.ok);
+}
+async function refreshMetrics(){
+  const m = await jget('/api/vision/metrics');
+  frameFps.textContent=m.frame_fps.toFixed(2); infAvg.textContent=m.inference_avg_ms.toFixed(2); infFps.textContent=m.inference_fps.toFixed(2);
+  targetNow.textContent=m.current_target_class; nNow.textContent=m.infer_every_n_frames; targetStatus.textContent=m.target_found?'encontrado':'perdido';
+  conf.textContent=(m.class_confidence||0).toFixed(2); area.textContent=(m.mask_area||0).toFixed(1); p95.textContent=m.inference_p95_ms.toFixed(2);
+  targetWarn.textContent=m.target_found ? '' : 'target not found';
+}
+setInterval(refreshMetrics, 600);
+(async()=>{ await loadClasses(); await loadRuntime(); await refreshMetrics(); })();
+</script>
+</body></html>
 """
 
 
@@ -157,7 +92,7 @@ def mjpeg_generator(get_frame, sleep_ms: int):
         time.sleep(sleep_ms / 1000.0)
 
 
-def build_app(cfg: dict, state, servo_service):
+def build_app(cfg: dict, state, servo_service, classes):
     app = Flask(__name__)
 
     @app.get("/")
@@ -175,28 +110,62 @@ def build_app(cfg: dict, state, servo_service):
     @app.get("/health")
     def health():
         runtime = state.get_runtime_snapshot()
-        return jsonify(
-            ok=True,
-            mode=runtime.mode,
-            color=runtime.color_name,
-            available_colors=sorted(COLOR_PRESETS.keys()),
-            servo_enabled=runtime.servo_enabled,
-            target_angle=runtime.target_angle,
-            resolution=runtime.resolution,
-            last_seen_ts=runtime.last_seen_ts,
-            desired_camera_index=runtime.desired_camera_index,
-            active_camera_index=runtime.active_camera_index,
-            modules={
-                "vision": {
-                    "running": runtime.vision_running,
-                    "last_error": runtime.vision_last_error,
-                    "fps": runtime.vision_fps,
-                },
-                "servo": {
-                    "enabled": runtime.servo_enabled,
-                },
-            },
+        metrics = state.metrics.snapshot()
+        return jsonify(ok=True, mode=runtime.mode, target_angle=runtime.target_angle, modules={"vision": {"running": runtime.vision_running, "last_error": runtime.vision_last_error, "fps": runtime.vision_fps}}, metrics=metrics)
+
+    @app.get("/api/vision/classes")
+    def vision_classes():
+        return jsonify(ok=True, classes=["all", *classes])
+
+    @app.get("/api/vision/config")
+    def vision_config():
+        return jsonify(ok=True, config=cfg["detector"], render=cfg["render"], tracking=cfg["tracking"])
+
+    @app.get("/api/vision/runtime")
+    def get_runtime_settings():
+        return jsonify(ok=True, **state.runtime_settings.as_dict())
+
+    @app.post("/api/vision/runtime")
+    def update_runtime_settings():
+        payload = request.get_json(silent=True) or {}
+        infer_n = payload.get("infer_every_n_frames")
+        if infer_n is not None:
+            try:
+                infer_n = max(1, int(infer_n))
+            except (TypeError, ValueError):
+                return jsonify(ok=False, error="invalid_infer_every_n_frames"), 400
+
+        updated = state.runtime_settings.update(
+            target_class=payload.get("target_class"),
+            infer_every_n_frames=infer_n,
+            draw_bbox=payload.get("draw_bbox"),
+            draw_mask=payload.get("draw_mask"),
+            draw_contour=payload.get("draw_contour"),
+            draw_label=payload.get("draw_label"),
+            retina_masks=payload.get("retina_masks"),
+            conf_threshold=payload.get("conf_threshold"),
         )
+        return jsonify(ok=True, **updated.__dict__)
+
+    @app.post("/api/vision/target")
+    def update_target_class():
+        payload = request.get_json(silent=True) or {}
+        updated = state.runtime_settings.update(target_class=payload.get("target_class"))
+        return jsonify(ok=True, target_class=updated.target_class)
+
+    @app.post("/api/vision/infer_every_n_frames")
+    def update_infer_n():
+        payload = request.get_json(silent=True) or {}
+        try:
+            infer_n = int(payload.get("infer_every_n_frames"))
+        except (TypeError, ValueError):
+            return jsonify(ok=False, error="invalid_infer_every_n_frames"), 400
+        updated = state.runtime_settings.update(infer_every_n_frames=max(1, infer_n))
+        return jsonify(ok=True, infer_every_n_frames=updated.infer_every_n_frames)
+
+    @app.get("/api/vision/metrics")
+    def get_metrics():
+        return jsonify(ok=True, **state.metrics.snapshot())
 
     @app.post("/api/mode/auto")
     def set_auto():
@@ -220,46 +189,9 @@ def build_app(cfg: dict, state, servo_service):
         angle = payload.get("angle")
         if angle is None:
             return jsonify(ok=False, error="missing_field_angle"), 400
-        try:
-            angle = float(angle)
-        except (TypeError, ValueError):
-            return jsonify(ok=False, error="invalid_angle"), 400
-
         if state.runtime.mode != "manual":
             return jsonify(ok=False, error="mode_must_be_manual"), 409
-
-        state.runtime.target_angle = servo_service.set_angle(angle, force=True)
+        state.runtime.target_angle = servo_service.set_angle(float(angle), force=True)
         return jsonify(ok=True, target_angle=state.runtime.target_angle)
-
-    @app.post("/api/camera/index")
-    def set_camera_index():
-        payload = request.get_json(silent=True) or {}
-        camera_index = payload.get("index")
-        if camera_index is None:
-            return jsonify(ok=False, error="missing_field_index"), 400
-
-        try:
-            camera_index = int(camera_index)
-        except (TypeError, ValueError):
-            return jsonify(ok=False, error="invalid_index"), 400
-
-        if camera_index < 0:
-            return jsonify(ok=False, error="index_must_be_non_negative"), 400
-
-        state.set_desired_camera_index(camera_index)
-        return jsonify(ok=True, desired_camera_index=camera_index)
-
-    @app.post("/api/tracking/color")
-    def set_tracking_color():
-        payload = request.get_json(silent=True) or {}
-        color_name = payload.get("color")
-        if color_name is None:
-            return jsonify(ok=False, error="missing_field_color"), 400
-
-        if color_name not in COLOR_PRESETS:
-            return jsonify(ok=False, error="invalid_color", available_colors=sorted(COLOR_PRESETS.keys())), 400
-
-        state.set_color(color_name)
-        return jsonify(ok=True, color=color_name)
 
     return app
