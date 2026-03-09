@@ -1,4 +1,4 @@
-"""Coordenação do serviço da bot."""
+"""Coordenação do serviço do bot."""
 
 from __future__ import annotations
 
@@ -7,24 +7,38 @@ import threading
 
 import yaml
 
+from .runtime.settings import RuntimeSettingsStore, VisionRuntimeSettings
 from .servo_backend import FileServoBackend
 from .servo_service import ServoService
 from .state import SharedState
-from .tracking import COLOR_PRESETS
 from .vision_service import VisionService
 from .web import build_app
-
 
 DEFAULT_CONFIG = {
     "camera": {"index": 0, "width": 424, "height": 240, "fps": 15},
     "tracking": {
-        "color": "green",
-        "area_min": 350,
-        "kp": 18.0,
-        "deadband": 0.10,
-        "show_mask": True,
         "scan_on_target_loss": False,
         "scan_after_ms": 1500,
+        "ema_alpha": 0.35,
+        "tracking_timeout_ms": 1200,
+    },
+    "detector": {
+        "enabled": True,
+        "model_path": "yolo11n-seg.pt",
+        "conf_threshold": 0.25,
+        "iou_threshold": 0.45,
+        "imgsz": 640,
+        "retina_masks": True,
+        "infer_every_n_frames_default": 1,
+        "target_class_default": "all",
+        "device": None,
+    },
+    "render": {
+        "overlay_alpha": 0.45,
+        "draw_bbox_default": False,
+        "draw_mask_default": True,
+        "draw_contour_default": True,
+        "draw_label_default": True,
     },
     "servo": {
         "enabled": True,
@@ -36,7 +50,7 @@ DEFAULT_CONFIG = {
         "target_file": "/tmp/kairos_servo_target",
     },
     "web": {"host": "0.0.0.0", "port": 8080, "jpeg_quality": 55, "stream_sleep_ms": 50},
-    "debug": {"frame_skip": 0, "verbose": False},
+    "debug": {"verbose": False},
 }
 
 
@@ -53,15 +67,10 @@ def deep_merge(base: dict, override: dict) -> dict:
 def load_config(path: str) -> dict:
     with open(path, "r", encoding="utf-8") as fp:
         raw = yaml.safe_load(fp) or {}
-    cfg = deep_merge(DEFAULT_CONFIG, raw)
-    if cfg["tracking"]["color"] not in COLOR_PRESETS:
-        raise ValueError("tracking.color inválida")
-    return cfg
+    return deep_merge(DEFAULT_CONFIG, raw)
 
 
 def apply_overrides(cfg: dict, args):
-    if args.color:
-        cfg["tracking"]["color"] = args.color
     if args.no_servo:
         cfg["servo"]["enabled"] = False
     if args.host:
@@ -77,9 +86,20 @@ def apply_overrides(cfg: dict, args):
 
 
 def run_service(cfg: dict):
-    state = SharedState(jpeg_quality=cfg["web"]["jpeg_quality"], show_mask=cfg["tracking"]["show_mask"])
+    runtime_settings = RuntimeSettingsStore(
+        VisionRuntimeSettings(
+            target_class=cfg["detector"]["target_class_default"],
+            infer_every_n_frames=cfg["detector"]["infer_every_n_frames_default"],
+            draw_bbox=cfg["render"]["draw_bbox_default"],
+            draw_mask=cfg["render"]["draw_mask_default"],
+            draw_contour=cfg["render"]["draw_contour_default"],
+            draw_label=cfg["render"]["draw_label_default"],
+            retina_masks=cfg["detector"]["retina_masks"],
+            conf_threshold=cfg["detector"]["conf_threshold"],
+        )
+    )
+    state = SharedState(jpeg_quality=cfg["web"]["jpeg_quality"], show_mask=True, runtime_settings=runtime_settings)
     state.runtime.servo_enabled = cfg["servo"]["enabled"]
-    state.runtime.color_name = cfg["tracking"]["color"]
     state.runtime.desired_camera_index = int(cfg["camera"]["index"])
     state.runtime.active_camera_index = None
     state.runtime.target_angle = float(cfg["servo"]["center_angle"])
@@ -95,9 +115,8 @@ def run_service(cfg: dict):
     servo_service = ServoService(servo_backend)
     vision_service = VisionService(cfg, state, servo_service)
 
-    # Thread dedicada para visão: permite escalar percepção sem acoplar na camada web.
     tracking_thread = threading.Thread(target=vision_service.run, daemon=True)
     tracking_thread.start()
 
-    app = build_app(cfg, state, servo_service)
+    app = build_app(cfg, state, servo_service, vision_service.model_classes)
     app.run(host=cfg["web"]["host"], port=cfg["web"]["port"], threaded=True)

@@ -1,14 +1,21 @@
-from apps.bot.tracking import COLOR_PRESETS
+from apps.bot.runtime.settings import RuntimeSettingsStore, VisionRuntimeSettings
+from apps.bot.state import SharedState
+from apps.bot.web import build_app
 
 
-def test_color_presets_exist():
-    for name in ["blue", "green", "red", "yellow"]:
-        assert name in COLOR_PRESETS
+class DummyServoService:
+    def set_angle(self, angle: float, force: bool = False) -> float:
+        return angle
 
 
-def test_hsv_ranges_valid():
-    for ranges in COLOR_PRESETS.values():
-        for lower, upper in ranges:
-            assert len(lower) == 3 and len(upper) == 3
-            for idx in range(3):
-                assert 0 <= lower[idx] <= upper[idx]
+def test_classes_endpoint_exposes_all_option():
+    cfg = {"web": {"stream_sleep_ms": 50}, "servo": {"center_angle": 90}, "detector": {}, "render": {}, "tracking": {}}
+    state = SharedState(jpeg_quality=50, show_mask=True, runtime_settings=RuntimeSettingsStore(VisionRuntimeSettings()))
+    app = build_app(cfg, state, DummyServoService(), classes=["person", "bottle"])
+    client = app.test_client()
+
+    response = client.get("/api/vision/classes")
+    data = response.get_json()
+    assert response.status_code == 200
+    assert data["classes"][0] == "all"
+    assert "person" in data["classes"]

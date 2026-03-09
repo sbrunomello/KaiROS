@@ -4,14 +4,26 @@ camera:
   height: 240
   fps: 15
 
+detector:
+  enabled: true
+  model_path: yolo11n-seg.pt
+  conf_threshold: 0.25
+  iou_threshold: 0.45
+  imgsz: 640
+  retina_masks: true
+  infer_every_n_frames_default: 1
+  target_class_default: all
+
 tracking:
-  color: green
-  area_min: 350
-  kp: 18.0
-  deadband: 0.10
-  show_mask: true
-  scan_on_target_loss: false
-  scan_after_ms: 1500
+  ema_alpha: 0.35
+  tracking_timeout_ms: 1200
+
+render:
+  overlay_alpha: 0.45
+  draw_bbox_default: false
+  draw_mask_default: true
+  draw_contour_default: true
+  draw_label_default: true
 
 servo:
   enabled: true
@@ -27,7 +39,3 @@ web:
   port: 8080
   jpeg_quality: 55
   stream_sleep_ms: 50
-
-debug:
-  frame_skip: 0
-  verbose: false

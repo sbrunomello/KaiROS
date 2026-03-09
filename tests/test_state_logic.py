@@ -1,17 +1,14 @@
-from apps.bot.tracking import compute_target_angle
-from apps.bot.utils import clamp
+from apps.bot.runtime.settings import RuntimeSettingsStore, VisionRuntimeSettings
+from apps.bot.state import SharedState
 
 
-def test_clamp_angle():
-    assert clamp(200, 60, 120) == 120
-    assert clamp(20, 60, 120) == 60
+def test_runtime_settings_update_infer_n():
+    store = RuntimeSettingsStore(VisionRuntimeSettings(infer_every_n_frames=1))
+    store.update(infer_every_n_frames=5)
+    assert store.snapshot().infer_every_n_frames == 5
 
 
-def test_deadband_behavior():
-    angle = compute_target_angle(90, 0.05, kp=18.0, deadband=0.10, min_angle=60, max_angle=120)
-    assert angle == 90
-
-
-def test_target_angle_calculation():
-    angle = compute_target_angle(90, 0.5, kp=18.0, deadband=0.10, min_angle=60, max_angle=120)
-    assert angle > 90
+def test_shared_state_exposes_runtime_settings():
+    store = RuntimeSettingsStore(VisionRuntimeSettings(target_class="all"))
+    state = SharedState(jpeg_quality=50, show_mask=True, runtime_settings=store)
+    assert state.get_runtime_settings_snapshot().target_class == "all"
