@@ -1,4 +1,4 @@
-"""Serviço isolado de visão com YOLO nano segmentation + tracking temporal."""
+"""Serviço isolado de visão com suporte modular para YOLO e segmentação por cor."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import cv2
 
 from .detector.yolo_nano_seg import YoloNanoSegDetector, YoloSegConfig
 from .render.mask_overlay import draw_detection_overlay
+from .tracking import COLOR_PRESETS, build_mask, compute_error_norm, compute_target_angle, detect_largest_blob
 from .tracking_runtime.target_selector import TargetSelector
 from .tracking_runtime.temporal_tracker import TemporalTracker
 
@@ -17,7 +18,7 @@ READ_FAIL_REOPEN_THRESHOLD = 20
 
 
 class VisionService:
-    """Executa captura, inferência de segmentação e atualização de métricas."""
+    """Executa captura, inferência e atualização de métricas para diferentes reconhecimentos."""
 
     def __init__(self, cfg: dict, state, servo_service, detector: Optional[YoloNanoSegDetector] = None):
         self._cfg = cfg
@@ -46,6 +47,14 @@ class VisionService:
     def model_classes(self):
         return self._detector.classes
 
+    @property
+    def recognition_modes(self):
+        return ["yolo", "color"]
+
+    @property
+    def color_presets(self):
+        return sorted(COLOR_PRESETS.keys())
+
     def _open_camera(self, camera_cfg: dict, camera_index: int):
         cap = cv2.VideoCapture(camera_index)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, camera_cfg["width"])
@@ -56,6 +65,24 @@ class VisionService:
             cap.release()
             return None
         return cap
+
+    def _apply_servo_auto(self, frame_width: int, target_x: int):
+        runtime = self._state.get_runtime_snapshot()
+        if runtime.mode != "auto" or not runtime.servo_enabled:
+            return
+
+        servo_cfg = self._cfg["servo"]
+        tracking_cfg = self._cfg["tracking"]
+        error_norm = compute_error_norm(target_x, frame_width)
+        desired = compute_target_angle(
+            runtime.target_angle,
+            error_norm,
+            tracking_cfg["kp"],
+            tracking_cfg["deadband"],
+            servo_cfg["min_angle"],
+            servo_cfg["max_angle"],
+        )
+        self._state.runtime.target_angle = self._servo_service.set_angle(desired)
 
     def run(self):
         camera_cfg = self._cfg["camera"]
@@ -121,58 +148,82 @@ class VisionService:
             height, width = frame.shape[:2]
             self._frame_count += 1
             settings = self._state.get_runtime_settings_snapshot()
+            self._state.runtime.recognition_mode = settings.recognition_mode
             preprocess_ms = (time.perf_counter() - preprocess_start) * 1000.0
 
-            run_inference = (self._frame_count % settings.infer_every_n_frames) == 0
-            dropped_count = self._state.metrics.snapshot()["dropped_inference_count"]
-            target = None
-            inference_ms = 0.0
-            if run_inference:
-                target_idx = None
-                if settings.target_class != "all" and settings.target_class in self._detector.classes:
-                    target_idx = [self._detector.classes.index(settings.target_class)]
-
-                prediction = self._detector.infer(frame, target_classes=target_idx)
-                inference_ms = prediction.inference_ms
-                self._inference_count += 1
-                target = self._selector.pick(prediction.detections, settings.target_class)
-            else:
-                dropped_count += 1
-
-            tracked = self._tracker.update(target)
-            render_start = time.perf_counter()
-            output_frame = frame
+            output_frame = frame.copy()
             mask = None
-            target_found = tracked is not None
+            target_found = False
             class_name = None
             class_conf = 0.0
             tracking_conf = 0.0
             centroid_x = 0
             centroid_y = 0
             mask_area = 0.0
+            inference_ms = 0.0
+            dropped_count = self._state.metrics.snapshot()["dropped_inference_count"]
 
-            if tracked:
-                det = tracked.detection
-                output_frame = draw_detection_overlay(
-                    frame,
-                    det,
-                    draw_mask=settings.draw_mask,
-                    draw_bbox=settings.draw_bbox,
-                    draw_contour=settings.draw_contour,
-                    draw_label=settings.draw_label,
-                    overlay_alpha=self._cfg["render"]["overlay_alpha"],
-                )
-                mask = det.segmentation_mask
-                class_name = det.class_name
-                class_conf = det.confidence
-                tracking_conf = tracked.tracking_confidence
-                centroid_x, centroid_y = det.centroid
-                mask_area = det.visible_area
-                self._state.mark_seen()
-                self._state.metrics.mark_detection_found()
+            if settings.recognition_mode == "color":
+                hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+                mask = build_mask(hsv, settings.target_color)
+                detection = detect_largest_blob(mask, self._cfg["tracking"]["area_min"])
+                target_found = detection is not None
+                if detection:
+                    x, y, ww, hh, area = detection
+                    centroid_x, centroid_y = x + ww // 2, y + hh // 2
+                    mask_area = area
+                    class_name = f"color:{settings.target_color}"
+                    class_conf = 1.0
+                    tracking_conf = 1.0
+                    cv2.rectangle(output_frame, (x, y), (x + ww, y + hh), (0, 255, 0), 2)
+                    cv2.circle(output_frame, (centroid_x, centroid_y), 5, (0, 255, 255), -1)
+                    cv2.line(output_frame, (width // 2, 0), (width // 2, height), (255, 255, 255), 1)
+                    self._state.mark_seen()
+                    self._state.metrics.mark_detection_found()
+                    self._apply_servo_auto(width, centroid_x)
+                else:
+                    cv2.putText(output_frame, "target not found", (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 80, 255), 2)
             else:
-                cv2.putText(output_frame, "target not found", (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 80, 255), 2)
+                run_inference = (self._frame_count % settings.infer_every_n_frames) == 0
+                target = None
+                if run_inference:
+                    target_idx = None
+                    if settings.target_class != "all" and settings.target_class in self._detector.classes:
+                        target_idx = [self._detector.classes.index(settings.target_class)]
 
+                    prediction = self._detector.infer(frame, target_classes=target_idx)
+                    inference_ms = prediction.inference_ms
+                    self._inference_count += 1
+                    target = self._selector.pick(prediction.detections, settings.target_class)
+                else:
+                    dropped_count += 1
+
+                tracked = self._tracker.update(target)
+                if tracked:
+                    det = tracked.detection
+                    output_frame = draw_detection_overlay(
+                        frame,
+                        det,
+                        draw_mask=settings.draw_mask,
+                        draw_bbox=settings.draw_bbox,
+                        draw_contour=settings.draw_contour,
+                        draw_label=settings.draw_label,
+                        overlay_alpha=self._cfg["render"]["overlay_alpha"],
+                    )
+                    mask = det.segmentation_mask
+                    target_found = True
+                    class_name = det.class_name
+                    class_conf = det.confidence
+                    tracking_conf = tracked.tracking_confidence
+                    centroid_x, centroid_y = det.centroid
+                    mask_area = det.visible_area
+                    self._state.mark_seen()
+                    self._state.metrics.mark_detection_found()
+                    self._apply_servo_auto(width, centroid_x)
+                else:
+                    cv2.putText(output_frame, "target not found", (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 80, 255), 2)
+
+            render_start = time.perf_counter()
             render_ms = (time.perf_counter() - render_start) * 1000.0
             self._state.update_visuals(output_frame, mask, f"{width}x{height}")
 

@@ -9,7 +9,9 @@ from typing import Any, Dict
 
 @dataclass
 class VisionRuntimeSettings:
+    recognition_mode: str = "yolo"
     target_class: str = "all"
+    target_color: str = "blue"
     infer_every_n_frames: int = 1
     draw_bbox: bool = False
     draw_mask: bool = True
@@ -36,6 +38,8 @@ class RuntimeSettingsStore:
                 setattr(self._settings, key, value)
             if self._settings.infer_every_n_frames < 1:
                 self._settings.infer_every_n_frames = 1
+            if self._settings.recognition_mode not in {"yolo", "color"}:
+                self._settings.recognition_mode = "yolo"
             return VisionRuntimeSettings(**asdict(self._settings))
 
     def as_dict(self) -> Dict[str, Any]:
