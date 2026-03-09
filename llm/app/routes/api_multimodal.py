@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+import time
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile as StarletteUploadFile
@@ -17,22 +20,17 @@ from ..schemas import (
 from ..services.asset_storage_service import AssetStorageService
 from ..services.image_generation_service import ImageGenerationError, ImageGenerationService
 from ..services.image_input_encoder import ImageInputEncoder, ImageInputEncoderError
-from ..services.multimodal_service import HistoryService, ModelCatalogService, VideoAnalysisService
+from ..services.multimodal_service import HistoryService, ModelCatalogService
 from ..services.openrouter_client import OpenRouterClient, OpenRouterHTTPError
 from ..services.settings_service import SettingsService
+from ..services.video_analysis_service import VideoAnalysisService
+from ..services.video_input_encoder import VideoInputEncoderError
 
 router = APIRouter(prefix="/api", tags=["multimodal"])
+logger = logging.getLogger(__name__)
 
 
 def _extract_uploaded_image(form_data) -> UploadFile | StarletteUploadFile | None:
-    """Retorna o arquivo de imagem enviado no formulário de forma resiliente.
-
-    Em alguns caminhos de execução o objeto retornado por ``request.form()`` pode
-    ser ``starlette.datastructures.UploadFile`` (e não necessariamente a classe
-    importada de FastAPI). Por isso aceitamos ambos os tipos e um fallback por
-    interface para evitar falso negativo de "imagem ausente".
-    """
-
     maybe_file = form_data.get("image")
     if isinstance(maybe_file, (UploadFile, StarletteUploadFile)):
         return maybe_file
@@ -151,56 +149,94 @@ async def generate_image(request: Request, username: str = Depends(get_username)
 @router.post("/analyze-video", response_model=VideoAnalysisOut)
 async def analyze_video(
     prompt: str = Form(...),
-    model: str = Form(...),
-    video_file: UploadFile = File(...),
+    model: str = Form(""),
+    reasoning_enabled: bool = Form(False),
+    video_file: UploadFile | None = File(None),
     username: str = Depends(get_username),
     db: Session = Depends(get_db),
 ):
+    started_at = time.perf_counter()
     settings = SettingsService(db).get()
     if not settings.openrouter_api_key:
         raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
 
+    if not video_file:
+        raise HTTPException(status_code=400, detail="Adicione um vídeo para análise.")
+
     raw = await video_file.read()
     max_bytes = settings.max_video_upload_mb * 1024 * 1024
     if len(raw) > max_bytes:
-        raise HTTPException(status_code=400, detail=f"Vídeo excede limite de {settings.max_video_upload_mb}MB")
+        raise HTTPException(status_code=400, detail="O arquivo excede o limite permitido.")
+
+    selected_model = (model or "").strip() or (settings.default_video_analysis_model or "").strip() or "nvidia/nemotron-nano-12b-v2-vl:free"
+    if not selected_model:
+        raise HTTPException(status_code=400, detail="modelo ausente")
 
     caps = ModelCatalogService().get_capabilities()
-    selected_model = (settings.default_video_analysis_model or "").strip()
-    if not selected_model:
-        raise HTTPException(status_code=400, detail="Defina um modelo padrão de vídeo análise nas configurações.")
-
     model_ids = {m["id"] for m in caps["video_input_models"]}
-    if selected_model not in model_ids:
-        raise HTTPException(status_code=400, detail="O modelo padrão de vídeo análise não suporta análise de vídeo por input.")
+    if model_ids and selected_model not in model_ids:
+        raise HTTPException(status_code=400, detail="O modelo selecionado não suporta análise de vídeo por input.")
+
+    content_type = (video_file.content_type or "").strip() or "video/mp4"
+    config = get_config()
+    video_storage = AssetStorageService(base_dir=config.input_videos_dir, public_prefix="/input-videos")
+
+    logger.info(
+        "video_analysis_start op=analyze_video model=%s reasoning_enabled=%s file_size=%s mime=%s url=%s",
+        selected_model,
+        reasoning_enabled,
+        len(raw),
+        content_type,
+        "https://openrouter.ai/api/v1/chat/completions",
+    )
 
     try:
-        result = VideoAnalysisService().analyze(
+        result = VideoAnalysisService(client=OpenRouterClient(timeout_seconds=settings.request_timeout_seconds)).analyze(
             settings=settings,
             model=selected_model,
-            prompt=prompt,
+            prompt=prompt.strip() or "Descreva o que acontece neste vídeo.",
             filename=video_file.filename or "video.mp4",
-            content_type=video_file.content_type or "video/mp4",
+            content_type=content_type,
             raw_bytes=raw,
+            reasoning_enabled=reasoning_enabled,
         )
-    except OpenRouterHTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Falha OpenRouter ({exc.status_code}): {exc.response_text}") from exc
-    except ValueError as exc:
+    except VideoInputEncoderError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OpenRouterHTTPError as exc:
+        logger.error("video_analysis_error status_code=%s response=%s", exc.status_code, exc.response_text[:500])
+        raise HTTPException(status_code=502, detail=f"OpenRouter retornou erro HTTP {exc.status_code}.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    persisted_video = video_storage.save_input_video(video_bytes=raw, mime_type=content_type, filename_prefix="input_video")
 
     if settings.persist_multimodal_history:
+        metadata = (
+            f"filename={video_file.filename or ''};mime_type={content_type};size_bytes={len(raw)};"
+            f"reasoning_enabled={str(reasoning_enabled).lower()};video_url={persisted_video['public_url']};"
+            f"reasoning_details={result.reasoning_details if result.reasoning_details is not None else ''}"
+        )
         HistoryService(db).add(
             username=username,
             item_type="video_analysis",
             model_name=selected_model,
             prompt=prompt,
             status="ok",
-            response_text=result,
-            asset_url="",
-            metadata_json=f"filename={video_file.filename}",
+            response_text=result.text,
+            asset_url=str(persisted_video["public_url"]),
+            metadata_json=metadata,
         )
 
-    return {"status": "ok", "model": selected_model, "prompt": prompt, "result": result}
+    elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
+    logger.info("video_analysis_done model=%s reasoning_enabled=%s status_code=200 latency_ms=%s", selected_model, reasoning_enabled, elapsed_ms)
+
+    return {
+        "status": "ok",
+        "model": selected_model,
+        "prompt": prompt,
+        "result": result.text,
+        "reasoning_enabled": reasoning_enabled,
+    }
 
 
 @router.get("/history/multimodal", response_model=list[MultimodalHistoryOut])
