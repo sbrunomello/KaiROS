@@ -1,16 +1,13 @@
 [Unit]
-Description=KaiROS Turret Servo Daemon (test bench)
+Description=KaiROS Servo Daemon compatibility unit (deprecated)
 After=network.target
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/kairos
-ExecStart=/opt/kairos/apps/turret/servo_daemon
+ExecStart=/opt/kairos/apps/bot/servo_daemon
 Restart=always
 RestartSec=2
-
-# Serviço opcional e de bancada para manter apenas o daemon C ativo.
-# A aplicação web Python deve ser gerenciada separadamente nesta fase V0.
 
 [Install]
 WantedBy=multi-user.target

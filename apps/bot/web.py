@@ -13,7 +13,7 @@ HTML = """
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>KaiROS Turret V0</title>
+  <title>KaiROS Bot Runtime V0</title>
   <style>
     body { background:#111; color:#eee; font-family:Arial,sans-serif; margin:16px; }
     .row { display:flex; gap:16px; flex-wrap:wrap; }
@@ -25,7 +25,7 @@ HTML = """
   </style>
 </head>
 <body>
-  <h1>KaiROS Turret V0 - Modular</h1>
+  <h1>KaiROS Bot Runtime V0 - Modular</h1>
   <p>
     mode=<code id="mode"></code>
     color=<code id="color"></code>

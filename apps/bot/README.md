@@ -1,8 +1,8 @@
-# KaiROS Turret V0
+# KaiROS Bot Runtime V0
 
 ## Visão geral
 
-A Turret V0 mantém a lógica validada em hardware real:
+A Bot Runtime V0 mantém a lógica validada em hardware real:
 - daemon C persistente controla o servo via softPWM
 - app Python faz tracking HSV e stream web
 - integração entre ambos ocorre por `target_file` compartilhado (`/tmp/kairos_servo_target`)
@@ -52,7 +52,7 @@ A partir da **raiz do repositório**:
 4. Em outro terminal, iniciar app web:
 
 ```bash
-./scripts/run_turret.sh
+./scripts/run_bot.sh
 ```
 
 Acesse: `http://localhost:8080` (ou `http://<IP_DA_MAQUINA>:8080`).
@@ -61,13 +61,13 @@ Acesse: `http://localhost:8080` (ou `http://<IP_DA_MAQUINA>:8080`).
 
 ## Configuração
 
-Arquivo principal: `apps/turret/config.yaml`.
+Arquivo principal: `apps/bot/config.yaml`.
 
 Exemplos de override via CLI:
 
 ```bash
-./scripts/run_turret.sh --color green --width 424 --height 240 --fps 15 --port 8080
-./scripts/run_turret.sh --no-servo
+./scripts/run_bot.sh --color green --width 424 --height 240 --fps 15 --port 8080
+./scripts/run_bot.sh --no-servo
 ```
 
 Presets de cor suportados: `blue`, `green`, `red`, `yellow`.

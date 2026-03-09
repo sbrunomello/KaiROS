@@ -1,4 +1,4 @@
-from apps.turret.tracking import COLOR_PRESETS
+from apps.bot.tracking import COLOR_PRESETS
 
 
 def test_color_presets_exist():

@@ -4,7 +4,7 @@ KaiROS (Lightweight Robot Operating System for Edge Devices) é um projeto para 
 
 Este repositório contém **dois módulos principais**:
 
-1. **Turret V0 (`apps/turret`)**: tracking por cor HSV + stream MJPEG + controle de servo.
+1. **Bot Runtime V0 (`apps/bot`)**: tracking por cor HSV + stream MJPEG + controle de servo.
 2. **LLM Web (`llm`)**: aplicação de chat web (FastAPI) isolada do módulo de visão/servo.
 
 ---
@@ -18,7 +18,7 @@ Este repositório contém **dois módulos principais**:
 - `gcc`
 - `make` (opcional, para atalhos)
 
-Para o módulo Turret com servo físico:
+Para o módulo Bot com servo físico:
 - biblioteca `wiringPi` instalada no sistema
 - câmera acessível em `/dev/video*`
 - permissões para acessar vídeo/GPIO
@@ -28,13 +28,13 @@ Para o módulo Turret com servo físico:
 ## Como rodar o projeto (visão geral)
 
 Você pode rodar:
-- somente o **Turret V0**
+- somente o **Bot Runtime V0**
 - somente o **LLM Web**
 - ambos em paralelo (portas diferentes)
 
 ---
 
-## 1) Rodando o Turret V0
+## 1) Rodando o Bot Runtime V0
 
 ### 1.1 Setup do ambiente Python (raiz do repositório)
 
@@ -74,10 +74,10 @@ make run-servo
 
 > Mantenha esse processo em execução.
 
-### 1.4 Subir aplicação web da turret (novo terminal)
+### 1.4 Subir aplicação web da bot (novo terminal)
 
 ```bash
-./scripts/run_turret.sh
+./scripts/run_bot.sh
 ```
 
 Alternativa com Makefile:
@@ -93,15 +93,15 @@ Acesso:
 ### 1.5 Overrides úteis em runtime
 
 ```bash
-./scripts/run_turret.sh --color green --width 424 --height 240 --fps 15 --port 8080
-./scripts/run_turret.sh --no-servo
+./scripts/run_bot.sh --color green --width 424 --height 240 --fps 15 --port 8080
+./scripts/run_bot.sh --no-servo
 ```
 
 ### 1.6 Configuração principal
 
-Arquivo: `apps/turret/config.yaml`.
+Arquivo: `apps/bot/config.yaml`.
 
-Para detalhes completos da turret, consulte `apps/turret/README.md`.
+Para detalhes completos da bot, consulte `apps/bot/README.md`.
 
 ---
 
@@ -140,12 +140,12 @@ Para detalhes completos do módulo LLM, consulte `llm/README.md`.
 ## 3) Rodando os dois módulos juntos
 
 Execução simultânea recomendada:
-- Turret em `:8080`
+- Bot em `:8080`
 - LLM em `:8091`
 
 Fluxo prático:
 1. Terminal A: `./scripts/run_servo_daemon.sh`
-2. Terminal B: `./scripts/run_turret.sh`
+2. Terminal B: `./scripts/run_bot.sh`
 3. Terminal C: `uvicorn llm.app.main:app --host 0.0.0.0 --port 8091`
 
 ---
@@ -176,9 +176,9 @@ make test
 
 - **`.venv` ausente**: rode `./scripts/setup_venv.sh`.
 - **`servo_daemon` não encontrado**: rode `./scripts/build_servo_daemon.sh`.
-- **Sem vídeo**: valide `camera.index` em `apps/turret/config.yaml` e permissões de `/dev/video*`.
+- **Sem vídeo**: valide `camera.index` em `apps/bot/config.yaml` e permissões de `/dev/video*`.
 - **Servo não responde**: confirme daemon ativo e escrita em `/tmp/kairos_servo_target`.
-- **Porta ocupada**: ajuste com `--port` na turret ou `--port` no `uvicorn`.
+- **Porta ocupada**: ajuste com `--port` na bot ou `--port` no `uvicorn`.
 
 ---
 

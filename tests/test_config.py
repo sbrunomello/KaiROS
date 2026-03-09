@@ -1,4 +1,4 @@
-from apps.turret.turret_service import DEFAULT_CONFIG, deep_merge, load_config
+from apps.bot.bot_service import DEFAULT_CONFIG, deep_merge, load_config
 
 
 def test_deep_merge_keeps_defaults():

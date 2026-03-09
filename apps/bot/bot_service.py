@@ -1,4 +1,4 @@
-"""Coordenação do serviço da turret."""
+"""Coordenação do serviço da bot."""
 
 from __future__ import annotations
 

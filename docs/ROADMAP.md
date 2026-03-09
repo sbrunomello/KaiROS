@@ -1,6 +1,6 @@
 # Roadmap KaiROS
 
-- **v0.1**: turret tracking por cor + stream web + servo horizontal
+- **v0.1**: bot tracking por cor + stream web + servo horizontal
 - **v0.2**: modo manual/auto + scan mode + health melhorado
 - **v0.3**: backend PCA9685
 - **v0.4**: pan+tilt

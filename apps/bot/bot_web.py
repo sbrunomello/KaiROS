@@ -1,16 +1,16 @@
-"""Entrypoint principal do KaiROS Turret."""
+"""Entrypoint principal do KaiROS."""
 
 from __future__ import annotations
 
 import argparse
 
 from .tracking import COLOR_PRESETS
-from .turret_service import apply_overrides, load_config, run_service
+from .bot_service import apply_overrides, load_config, run_service
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="KaiROS Turret V0")
-    parser.add_argument("--config", default="apps/turret/config.yaml")
+    parser = argparse.ArgumentParser(description="KaiROS Bot Runtime V0")
+    parser.add_argument("--config", default="apps/bot/config.yaml")
     parser.add_argument("--color", choices=sorted(COLOR_PRESETS.keys()))
     parser.add_argument("--no-servo", action="store_true")
     parser.add_argument("--host")
