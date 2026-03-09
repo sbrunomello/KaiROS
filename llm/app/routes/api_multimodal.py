@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from ..config import get_config
 from ..db import get_db
@@ -21,6 +22,23 @@ from ..services.openrouter_client import OpenRouterClient, OpenRouterHTTPError
 from ..services.settings_service import SettingsService
 
 router = APIRouter(prefix="/api", tags=["multimodal"])
+
+
+def _extract_uploaded_image(form_data) -> UploadFile | StarletteUploadFile | None:
+    """Retorna o arquivo de imagem enviado no formulário de forma resiliente.
+
+    Em alguns caminhos de execução o objeto retornado por ``request.form()`` pode
+    ser ``starlette.datastructures.UploadFile`` (e não necessariamente a classe
+    importada de FastAPI). Por isso aceitamos ambos os tipos e um fallback por
+    interface para evitar falso negativo de "imagem ausente".
+    """
+
+    maybe_file = form_data.get("image")
+    if isinstance(maybe_file, (UploadFile, StarletteUploadFile)):
+        return maybe_file
+    if hasattr(maybe_file, "read") and hasattr(maybe_file, "filename"):
+        return maybe_file
+    return None
 
 
 @router.get("/models")
@@ -54,8 +72,7 @@ async def generate_image(request: Request, username: str = Depends(get_username)
             model=str(form.get("model", "")).strip(),
             mode=str(form.get("mode", "text_to_image")).strip(),
         )
-        maybe_file = form.get("image")
-        input_file = maybe_file if isinstance(maybe_file, UploadFile) else None
+        input_file = _extract_uploaded_image(form)
     else:
         body = await request.json()
         payload = ImageGenerationIn(**body)
