@@ -65,7 +65,7 @@ document.getElementById('settings-form').onsubmit = async (e) => {
     image_edit_provider: getFieldValue('image_edit_provider') ?? 'openrouter',
     video_analysis_mode: getFieldValue('video_analysis_mode') ?? 'legacy',
     model_name: getFieldValue('model_name') ?? 'openrouter/auto',
-    chat_model_name: getFieldValue('chat_model_name') ?? 'llama-3.1-8b-instant',
+    chat_model_name: getFieldValue('chat_model_name') ?? 'openrouter/auto',
     speech_model_name: getFieldValue('speech_model_name') ?? 'whisper-large-v3-turbo',
     vision_model_name: getFieldValue('vision_model_name') ?? 'llama-3.2-11b-vision-preview',
     default_image_model: getFieldValue('default_image_model') ?? 'bytedance-seed/seedream-4.5',

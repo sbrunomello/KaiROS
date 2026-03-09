@@ -9,7 +9,7 @@ def test_analyze_image_endpoint(client, monkeypatch):
             "groq_api_key": "g",
             "huggingface_api_key": "",
             "model_name": "openrouter/auto",
-            "chat_model_name": "llama-3.1-8b-instant",
+            "chat_model_name": "openrouter/auto",
             "default_image_model": "m",
             "default_video_analysis_model": "m",
             "default_video_generation_model": "",

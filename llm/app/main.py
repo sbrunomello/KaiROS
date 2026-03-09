@@ -37,7 +37,7 @@ def _ensure_settings_columns() -> None:
         "huggingface_api_key": "VARCHAR(255) DEFAULT ''",
         "chat_provider": "VARCHAR(32) DEFAULT 'groq'",
         "chat_fallback_provider": "VARCHAR(32) DEFAULT 'openrouter'",
-        "chat_model_name": "VARCHAR(255) DEFAULT 'llama-3.1-8b-instant'",
+        "chat_model_name": "VARCHAR(255) DEFAULT 'openrouter/auto'",
         "speech_provider": "VARCHAR(32) DEFAULT 'groq'",
         "speech_model_name": "VARCHAR(255) DEFAULT 'whisper-large-v3-turbo'",
         "whisper_cpp_binary_path": "VARCHAR(255) DEFAULT ''",
