@@ -3,15 +3,21 @@
 {% block content %}
 <div class="settings-wrap">
   <h1>Configurações</h1>
-  <a href="/">← Voltar ao chat</a>
+  <a href="/">← Voltar</a>
   <form id="settings-form">
     <label>OpenRouter API Key <input type="password" id="openrouter_api_key" /></label>
-    <label>Modelo (input livre) <input type="text" id="model_name" placeholder="deepseek/deepseek-chat" /></label>
+    <label>Modelo chat <input type="text" id="model_name" /></label>
+    <label>Modelo imagem <input type="text" id="default_image_model" /></label>
+    <label>Modelo vídeo análise <input type="text" id="default_video_analysis_model" /></label>
+    <label>Modelo vídeo geração <input type="text" id="default_video_generation_model" /></label>
     <label>Temperatura <input type="number" step="0.1" min="0" max="2" id="temperature" /></label>
-    <label>Personalidade / System Prompt <textarea id="system_prompt" rows="6"></textarea></label>
-    <label>Nome da assistente <input type="text" id="assistant_name" /></label>
+    <label>System prompt <textarea id="system_prompt" rows="6"></textarea></label>
+    <label>Nome assistente <input type="text" id="assistant_name" /></label>
     <label>HTTP-Referer opcional <input type="text" id="http_referer" /></label>
     <label>X-Title opcional <input type="text" id="x_title" /></label>
+    <label>Timeout (s) <input type="number" id="request_timeout_seconds" min="5" max="300" /></label>
+    <label>Limite upload vídeo MB <input type="number" id="max_video_upload_mb" min="1" max="200" /></label>
+    <label>Persistir histórico multimodal <select id="persist_multimodal_history"><option value="true">Sim</option><option value="false">Não</option></select></label>
     <button type="submit">Salvar</button>
   </form>
   <p id="settings-status"></p>

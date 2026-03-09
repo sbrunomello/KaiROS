@@ -21,6 +21,13 @@ class Settings(Base):
     assistant_name: Mapped[str] = mapped_column(String(120), default="Kai")
     http_referer: Mapped[str] = mapped_column(String(255), default="")
     x_title: Mapped[str] = mapped_column(String(255), default="")
+
+    default_image_model: Mapped[str] = mapped_column(String(255), default="google/gemini-3.1-flash-image-preview")
+    default_video_analysis_model: Mapped[str] = mapped_column(String(255), default="google/gemini-2.5-pro")
+    default_video_generation_model: Mapped[str] = mapped_column(String(255), default="")
+    request_timeout_seconds: Mapped[int] = mapped_column(Integer, default=25)
+    max_video_upload_mb: Mapped[int] = mapped_column(Integer, default=20)
+    persist_multimodal_history: Mapped[bool] = mapped_column(default=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
@@ -54,3 +61,18 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     conversation: Mapped[Conversation] = relationship("Conversation", back_populates="messages")
+
+
+class MultimodalHistory(Base):
+    __tablename__ = "multimodal_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(64), index=True, default="default")
+    item_type: Mapped[str] = mapped_column(String(32))
+    model_name: Mapped[str] = mapped_column(String(255), default="")
+    prompt: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), default="ok")
+    response_text: Mapped[str] = mapped_column(Text, default="")
+    asset_url: Mapped[str] = mapped_column(Text, default="")
+    metadata_json: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
