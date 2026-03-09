@@ -24,7 +24,7 @@ DEFAULT_CONFIG = {
     },
     "detector": {
         "enabled": True,
-        "model_path": "yolo11n-seg.pt",
+        "model_path": "yolo26n-seg.pt",
         "conf_threshold": 0.25,
         "iou_threshold": 0.45,
         "imgsz": 640,

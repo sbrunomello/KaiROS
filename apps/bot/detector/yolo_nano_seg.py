@@ -14,7 +14,7 @@ from .base import DetectionResult, DetectorFrameOutput, SegmentationDetector
 
 @dataclass
 class YoloSegConfig:
-    model_path: str = "yolo11n-seg.pt"
+    model_path: str = "yolo26n-seg.pt"
     conf_threshold: float = 0.25
     iou_threshold: float = 0.45
     imgsz: int = 640
