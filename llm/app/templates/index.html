@@ -89,19 +89,95 @@
 <section id="tab-settings" class="tab-section settings-wrap">
   <h2>Configurações</h2>
   <form id="settings-form">
-    <label>OpenRouter API Key <input type="password" id="openrouter_api_key" /></label>
-    <label>Modelo padrão de chat <input type="text" id="model_name" /></label>
-    <label>Modelo padrão de imagem <input type="text" id="default_image_model" /></label>
-    <label>Modelo padrão vídeo análise <input type="text" id="default_video_analysis_model" /></label>
-    <label>Modelo padrão vídeo geração <input type="text" id="default_video_generation_model" /></label>
-    <label>Temperatura <input type="number" step="0.1" min="0" max="2" id="temperature" /></label>
-    <label>System Prompt <textarea id="system_prompt" rows="4"></textarea></label>
-    <label>Nome da assistente <input type="text" id="assistant_name" /></label>
-    <label>Timeout (s) <input type="number" id="request_timeout_seconds" min="5" max="300" /></label>
-    <label>Limite upload vídeo (MB) <input type="number" id="max_video_upload_mb" min="1" max="200" /></label>
-    <label>Persistir histórico multimodal <select id="persist_multimodal_history"><option value="true">Sim</option><option value="false">Não</option></select></label>
-    <label>HTTP-Referer <input type="text" id="http_referer" /></label>
-    <label>X-Title <input type="text" id="x_title" /></label>
+    <fieldset class="settings-section">
+      <legend>Providers</legend>
+      <label>Chat provider
+        <select id="chat_provider">
+          <option value="groq">groq</option>
+          <option value="openrouter">openrouter</option>
+        </select>
+      </label>
+      <label>Chat fallback provider
+        <select id="chat_fallback_provider">
+          <option value="">(nenhum)</option>
+          <option value="groq">groq</option>
+          <option value="openrouter">openrouter</option>
+        </select>
+      </label>
+      <label>Speech provider
+        <select id="speech_provider">
+          <option value="groq">groq</option>
+          <option value="local">local</option>
+        </select>
+      </label>
+      <label>Vision provider
+        <select id="vision_provider">
+          <option value="groq">groq</option>
+          <option value="openrouter">openrouter</option>
+        </select>
+      </label>
+      <label>Image generation provider
+        <select id="image_gen_provider">
+          <option value="openrouter">openrouter</option>
+          <option value="hf">hf</option>
+        </select>
+      </label>
+      <label>Image edit provider
+        <select id="image_edit_provider">
+          <option value="openrouter">openrouter</option>
+          <option value="hf">hf</option>
+        </select>
+      </label>
+      <label>Video analysis mode
+        <select id="video_analysis_mode">
+          <option value="legacy">legacy</option>
+          <option value="pipeline">pipeline</option>
+        </select>
+      </label>
+    </fieldset>
+
+    <fieldset class="settings-section">
+      <legend>API Keys</legend>
+      <label>OpenRouter API Key <input type="password" id="openrouter_api_key" /></label>
+      <label>Groq API Key <input type="password" id="groq_api_key" /></label>
+      <label>HuggingFace API Key <input type="password" id="huggingface_api_key" /></label>
+    </fieldset>
+
+    <fieldset class="settings-section">
+      <legend>Modelos</legend>
+      <label>Modelo chat (legado) <input type="text" id="model_name" /></label>
+      <label>Modelo chat (provider-aware) <input type="text" id="chat_model_name" /></label>
+      <label>Modelo speech <input type="text" id="speech_model_name" /></label>
+      <label>Modelo vision <input type="text" id="vision_model_name" /></label>
+      <label>Modelo imagem padrão (legado) <input type="text" id="default_image_model" /></label>
+      <label>Modelo imagem padrão OpenRouter <input type="text" id="openrouter_default_image_model" /></label>
+      <label>Modelo imagem padrão HuggingFace <input type="text" id="hf_default_image_model" /></label>
+      <label>Modelo image edit <input type="text" id="image_edit_model_name" /></label>
+      <label>Modelo vídeo análise <input type="text" id="default_video_analysis_model" /></label>
+      <label>Modelo vídeo geração <input type="text" id="default_video_generation_model" /></label>
+    </fieldset>
+
+    <fieldset class="settings-section">
+      <legend>Pipeline local / ferramentas</legend>
+      <label>whisper.cpp binário <input type="text" id="whisper_cpp_binary_path" /></label>
+      <label>whisper.cpp modelo <input type="text" id="whisper_cpp_model_path" /></label>
+      <label>ffmpeg binário <input type="text" id="ffmpeg_binary_path" /></label>
+      <label class="checkbox-field"><input type="checkbox" id="image_edit_enabled" /> Habilitar image edit</label>
+      <label class="checkbox-field"><input type="checkbox" id="video_enable_vision" /> Habilitar visão no pipeline de vídeo</label>
+      <label>Frame sample (segundos) <input type="number" id="video_frame_sample_seconds" min="1" max="60" /></label>
+    </fieldset>
+
+    <fieldset class="settings-section">
+      <legend>Configurações gerais</legend>
+      <label>Temperatura <input type="number" step="0.1" min="0" max="2" id="temperature" /></label>
+      <label>System Prompt <textarea id="system_prompt" rows="4"></textarea></label>
+      <label>Nome da assistente <input type="text" id="assistant_name" /></label>
+      <label>Timeout (s) <input type="number" id="request_timeout_seconds" min="5" max="300" /></label>
+      <label>Limite upload vídeo (MB) <input type="number" id="max_video_upload_mb" min="1" max="200" /></label>
+      <label>Persistir histórico multimodal <select id="persist_multimodal_history"><option value="true">Sim</option><option value="false">Não</option></select></label>
+      <label>HTTP-Referer <input type="text" id="http_referer" /></label>
+      <label>X-Title <input type="text" id="x_title" /></label>
+    </fieldset>
     <button type="submit">Salvar</button>
   </form>
   <button id="refresh-models-btn" type="button">Atualizar catálogo de modelos</button>
