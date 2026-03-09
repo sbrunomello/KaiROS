@@ -52,3 +52,7 @@ pre { white-space:pre-wrap; background:#0b1220; padding:12px; border-radius:8px;
 .badge-info { background:#0ea5e9; color:white; font-size:10px; border-radius:999px; padding:2px 6px; font-weight:700; }
 
 @media (max-width: 768px) { .image-model-catalog { grid-template-columns: 1fr; } }
+.image-mode-selector { display:flex; gap:12px; margin-bottom:8px; }
+.image-input-preview { margin:8px 0; }
+#image-history { display:flex; flex-direction:column; gap:8px; }
+.history-item { background:#0b1220; border:1px solid #334155; border-radius:8px; padding:8px; }

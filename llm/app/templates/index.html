@@ -37,14 +37,25 @@
 
 <section id="tab-image" class="tab-section panel">
   <h2>Geração de imagem</h2>
-  <label>Prompt <textarea id="image-prompt" rows="4"></textarea></label>
+  <div class="image-mode-selector">
+    <label><input type="radio" name="image-mode" value="text_to_image" checked /> Texto -&gt; Imagem</label>
+    <label><input type="radio" name="image-mode" value="image_to_image" /> Imagem -&gt; Imagem</label>
+  </div>
+  <label>Prompt <textarea id="image-prompt" rows="4" placeholder="Transforme essa foto em anime"></textarea></label>
   <label>Modelo
     <select id="image-model-select"></select>
   </label>
+  <label class="image-upload-wrap">Imagem de entrada (opcional em texto -&gt; imagem)
+    <input id="image-input-file" type="file" accept="image/png,image/jpeg,image/webp" />
+  </label>
+  <div id="image-input-preview" class="image-input-preview"></div>
+  <button id="remove-image-btn" type="button">Remover imagem</button>
   <div id="image-model-catalog" class="image-model-catalog"></div>
   <button id="generate-image-btn">Gerar</button>
   <p id="image-status" class="status"></p>
   <div id="image-result"></div>
+  <h3>Histórico</h3>
+  <div id="image-history"></div>
 </section>
 
 <section id="tab-video" class="tab-section panel">

@@ -150,7 +150,7 @@ function populateImageModelSelect() {
   const select = document.getElementById('image-model-select');
   if (!select) return;
 
-  const safeDefaults = ['sourceful/riverflow-v2-fast'];
+  const safeDefaults = ['bytedance-seed/seedream-4.5'];
   const catalogModels = modelCapabilities.image_models || [];
   const ids = [...new Set([...safeDefaults, ...catalogModels.map((m) => m.id).filter(Boolean)])];
   const configuredDefault = (document.getElementById('default_image_model')?.value || '').trim();
@@ -215,10 +215,42 @@ async function saveSettings(e) {
   catch (e2) { setStatus('settings-status', `Erro ao salvar: ${e2.message}`); }
 }
 
+
+function selectedImageMode() {
+  const el = document.querySelector('input[name="image-mode"]:checked');
+  return el ? el.value : 'text_to_image';
+}
+
+function renderInputPreview(file) {
+  const holder = document.getElementById('image-input-preview');
+  if (!holder) return;
+  if (!file) { holder.innerHTML = ''; return; }
+  const objectUrl = URL.createObjectURL(file);
+  holder.innerHTML = `<img src="${objectUrl}" alt="preview" class="generated-image" />`;
+}
+
+async function loadImageHistory() {
+  try {
+    const data = await fetchJson(apiUrl('/api/history/multimodal'), { headers: usernameHeaders() });
+    const imageItems = data.filter((item) => item.item_type === 'image_generation');
+    const holder = document.getElementById('image-history');
+    if (!holder) return;
+    holder.innerHTML = imageItems.map((item) => `<div class="history-item"><strong>${item.model_name}</strong> - ${item.prompt}<br/><small>${item.metadata_json}</small><br/>${item.asset_url ? `<img src="${item.asset_url}" class="generated-image" alt="hist"/>` : ''}</div>`).join('') || '<p>Nenhum histórico.</p>';
+  } catch (_e) {
+    // histórico opcional
+  }
+}
+
 async function generateImage() {
   const prompt = document.getElementById('image-prompt').value.trim();
+  const mode = selectedImageMode();
+  const imageFile = document.getElementById('image-input-file').files[0];
   if (!prompt) {
     setStatus('image-status', 'Digite um prompt para gerar imagem.');
+    return;
+  }
+  if (mode === 'image_to_image' && !imageFile) {
+    setStatus('image-status', 'Adicione uma imagem para usar o modo imagem para imagem.');
     return;
   }
 
@@ -230,20 +262,26 @@ async function generateImage() {
     const selectedModel = document.getElementById('image-model-select').value;
     if (!selectedModel) throw new Error('Nenhum modelo de imagem disponível.');
 
-    const payload = { prompt, model: selectedModel };
+    const form = new FormData();
+    form.append('prompt', prompt);
+    form.append('model', selectedModel);
+    form.append('mode', mode);
+    if (imageFile) form.append('image', imageFile);
+
     const data = await fetchJson(apiUrl('/api/generate-image'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...usernameHeaders() },
-      body: JSON.stringify(payload),
+      headers: { ...usernameHeaders() },
+      body: form,
     });
     const holder = document.getElementById('image-result');
     holder.innerHTML = `
       <img src="${data.image_url}" alt="imagem gerada" class="generated-image" />
       <p>${data.text || ''}</p>
-      <p><strong>Modelo:</strong> ${data.model} | <strong>Tipo:</strong> ${data.mime_type} | <strong>Tamanho:</strong> ${data.size_bytes} bytes</p>
+      <p><strong>Modo:</strong> ${data.mode} | <strong>Modelo:</strong> ${data.model} | <strong>Tipo:</strong> ${data.mime_type} | <strong>Tamanho:</strong> ${data.size_bytes} bytes</p>
       <a href="${data.image_url}" target="_blank">Abrir</a> | <a href="${data.image_url}" download>Download</a>
     `;
     setStatus('image-status', 'Imagem gerada com sucesso.');
+    await loadImageHistory();
   } catch (e) {
     setStatus('image-status', `Erro: ${e.message}`);
   } finally {
@@ -275,6 +313,8 @@ document.getElementById('chat-form').onsubmit = async (e) => { e.preventDefault(
 document.getElementById('settings-form').onsubmit = saveSettings;
 document.getElementById('refresh-models-btn').onclick = loadCapabilities;
 document.getElementById('generate-image-btn').onclick = generateImage;
+document.getElementById('image-input-file').onchange = (e) => renderInputPreview(e.target.files[0]);
+document.getElementById('remove-image-btn').onclick = () => { const input = document.getElementById('image-input-file'); input.value = ''; renderInputPreview(null); };
 document.getElementById('analyze-video-btn').onclick = analyzeVideo;
 
 (function init() {
@@ -284,4 +324,5 @@ document.getElementById('analyze-video-btn').onclick = analyzeVideo;
   initTabs();
   loadSettings().then(loadCapabilities);
   loadChats();
+  loadImageHistory();
 })();
