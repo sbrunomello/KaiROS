@@ -16,6 +16,16 @@ class BinaryModuleCheck:
     rationale: str
 
 
+@dataclass(frozen=True)
+class PreflightFailure:
+    """Metadados estruturados sobre uma falha de preflight."""
+
+    module_name: str
+    rationale: str
+    detector_related: bool
+    signal_name: str | None = None
+
+
 # Dependências importadas em subprocesso para evitar que um SIGILL derrube o processo principal.
 BASE_BINARY_MODULE_CHECKS: tuple[BinaryModuleCheck, ...] = (
     BinaryModuleCheck("cv2", "captura/render de vídeo"),
@@ -30,6 +40,10 @@ DETECTOR_BINARY_MODULE_CHECKS: tuple[BinaryModuleCheck, ...] = (
 
 class PreflightError(RuntimeError):
     """Erro específico para falha de compatibilidade em pré-voo."""
+
+    def __init__(self, message: str, *, failure: PreflightFailure):
+        super().__init__(message)
+        self.failure = failure
 
 
 def _run_import_check(module_name: str) -> subprocess.CompletedProcess[str]:
@@ -48,7 +62,10 @@ def run_binary_dependency_preflight(*, detector_enabled: bool = True) -> None:
     if detector_enabled:
         checks = checks + DETECTOR_BINARY_MODULE_CHECKS
 
+    detector_module_names = {check.name for check in DETECTOR_BINARY_MODULE_CHECKS}
+
     for check in checks:
+        detector_related = check.name in detector_module_names
         result = _run_import_check(check.name)
 
         if result.returncode == 0:
@@ -69,10 +86,23 @@ def run_binary_dependency_preflight(*, detector_enabled: bool = True) -> None:
                         "  3) Se necessário, use pacotes do sistema para OpenCV (sudo apt install python3-opencv).",
                         f"Contexto: módulo necessário para {check.rationale}.",
                     ]
-                )
+                ),
+                failure=PreflightFailure(
+                    module_name=check.name,
+                    rationale=check.rationale,
+                    detector_related=detector_related,
+                    signal_name="SIGILL",
+                ),
             )
 
         stderr = (result.stderr or "").strip()
         stdout = (result.stdout or "").strip()
         details = stderr or stdout or "sem detalhes"
-        raise PreflightError(f"Falha ao importar '{check.name}': {details}")
+        raise PreflightError(
+            f"Falha ao importar '{check.name}': {details}",
+            failure=PreflightFailure(
+                module_name=check.name,
+                rationale=check.rationale,
+                detector_related=detector_related,
+            ),
+        )
