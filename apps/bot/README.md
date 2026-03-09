@@ -2,7 +2,7 @@
 
 ## Arquitetura da pipeline de visão
 
-A runtime agora usa segmentação por instância com **YOLO nano da Ultralytics** (`yolo11n-seg.pt`) como padrão obrigatório.
+A runtime agora usa segmentação por instância com **YOLO nano da Ultralytics** (`yolo26n-seg.pt`) como padrão obrigatório.
 
 ### Módulos principais
 - `apps/bot/detector/base.py`: interface e DTOs de detecção (classe, máscara, centróide, área etc.).
