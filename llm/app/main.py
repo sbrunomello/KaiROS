@@ -27,7 +27,7 @@ _ensure_username_column()
 
 def _ensure_settings_columns() -> None:
     expected = {
-        "default_image_model": "VARCHAR(255) DEFAULT 'google/gemini-2.5-flash-image-preview:free'",
+        "default_image_model": "VARCHAR(255) DEFAULT 'sourceful/riverflow-v2-fast'",
         "default_video_analysis_model": "VARCHAR(255) DEFAULT 'google/gemini-2.5-pro'",
         "default_video_generation_model": "VARCHAR(255) DEFAULT ''",
         "request_timeout_seconds": "INTEGER DEFAULT 25",
@@ -45,6 +45,7 @@ _ensure_settings_columns()
 
 app = FastAPI(title=config.app_name)
 app.mount("/static", StaticFiles(directory="llm/app/static"), name="static")
+app.mount("/generated-images", StaticFiles(directory=str(config.generated_images_dir)), name="generated-images")
 
 app.include_router(web.router)
 app.include_router(api_health.router)

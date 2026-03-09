@@ -11,15 +11,15 @@ from ..models import MultimodalHistory, Settings
 from .openrouter_client import OpenRouterClient
 
 
-FREE_IMAGE_FALLBACK_MODEL = "google/gemini-2.5-flash-image-preview:free"
-
-
 class ModelCatalogService:
     def __init__(self, client: OpenRouterClient | None = None):
         self.client = client or OpenRouterClient()
 
     def get_capabilities(self) -> dict[str, Any]:
-        models = self.client.get_models()
+        try:
+            models = self.client.get_models()
+        except Exception:  # noqa: BLE001
+            models = []
         mapped = []
         for model in models:
             arch = model.get("architecture") or {}
@@ -56,11 +56,11 @@ class ModelCatalogService:
         }
 
     def resolve_default_image_model(self, *, image_models_free: list[dict[str, Any]]) -> str:
-        """Always prefer real free image-capable models for automatic selection."""
+        """Resolve a safe default model for image generation."""
         free_models = [model["id"] for model in image_models_free if model.get("id")]
         if free_models:
             return free_models[0]
-        return ""
+        return "sourceful/riverflow-v2-fast"
 
     def _is_free_model(self, model_id: str) -> bool:
         return model_id.endswith(":free")
@@ -100,72 +100,6 @@ class HistoryService:
         self.db.commit()
         self.db.refresh(item)
         return item
-
-
-class ImageGenerationService:
-    def __init__(self, client: OpenRouterClient | None = None):
-        self.client = client or OpenRouterClient()
-
-    def build_payload(self, *, model: str, prompt: str) -> dict[str, Any]:
-        # OpenRouter image generation should explicitly request image-only output
-        # to avoid models returning only textual completions.
-        return {
-            "model": model,
-            "modalities": ["image"],
-            "messages": [{"role": "user", "content": prompt}],
-        }
-
-    def generate(self, *, settings: Settings, model: str, prompt: str) -> dict[str, str]:
-        payload = self.build_payload(model=model, prompt=prompt)
-        data = self.client.chat_completion(
-            api_key=settings.openrouter_api_key,
-            payload=payload,
-            http_referer=settings.http_referer,
-            x_title=settings.x_title,
-        )
-        image_url = self._extract_image_url(data)
-        if not image_url:
-            raise ValueError("Não foi possível extrair imagem da resposta do modelo")
-        text = self._extract_text(data)
-        return {"image_url": image_url, "text": text}
-
-    def _extract_text(self, data: dict[str, Any]) -> str:
-        message = ((data.get("choices") or [{}])[0]).get("message") or {}
-        content = message.get("content")
-        if isinstance(content, str):
-            return content
-        if isinstance(content, list):
-            for part in content:
-                if isinstance(part, dict) and part.get("type") in ("text", "output_text"):
-                    return part.get("text", "")
-        return ""
-
-    def _extract_image_url(self, data: dict[str, Any]) -> str | None:
-        message = ((data.get("choices") or [{}])[0]).get("message") or {}
-        content = message.get("content")
-        if isinstance(content, list):
-            for part in content:
-                if not isinstance(part, dict):
-                    continue
-                if part.get("type") in ("image_url", "output_image"):
-                    img = part.get("image_url")
-                    if isinstance(img, dict):
-                        return img.get("url")
-                    if isinstance(img, str):
-                        return img
-                    return part.get("url")
-        if isinstance(message.get("images"), list) and message["images"]:
-            first = message["images"][0]
-            if isinstance(first, dict):
-                image_url = first.get("image_url")
-                if isinstance(image_url, dict):
-                    return image_url.get("url")
-                if isinstance(image_url, str):
-                    return image_url
-                return first.get("url")
-            if isinstance(first, str):
-                return first
-        return data.get("image_url")
 
 
 class VideoAnalysisService:

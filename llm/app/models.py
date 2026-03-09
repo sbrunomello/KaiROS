@@ -22,7 +22,7 @@ class Settings(Base):
     http_referer: Mapped[str] = mapped_column(String(255), default="")
     x_title: Mapped[str] = mapped_column(String(255), default="")
 
-    default_image_model: Mapped[str] = mapped_column(String(255), default="google/gemini-2.5-flash-image-preview:free")
+    default_image_model: Mapped[str] = mapped_column(String(255), default="sourceful/riverflow-v2-fast")
     default_video_analysis_model: Mapped[str] = mapped_column(String(255), default="google/gemini-2.5-pro")
     default_video_generation_model: Mapped[str] = mapped_column(String(255), default="")
     request_timeout_seconds: Mapped[int] = mapped_column(Integer, default=25)

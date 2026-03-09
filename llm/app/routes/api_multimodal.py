@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from ..config import get_config
 from ..db import get_db
 from ..deps import get_username
 from ..schemas import (
@@ -12,8 +13,10 @@ from ..schemas import (
     MultimodalHistoryOut,
     VideoAnalysisOut,
 )
-from ..services.multimodal_service import HistoryService, ImageGenerationService, ModelCatalogService, VideoAnalysisService
-from ..services.openrouter_client import OpenRouterHTTPError
+from ..services.asset_storage_service import AssetStorageService
+from ..services.image_generation_service import ImageGenerationError, ImageGenerationService
+from ..services.multimodal_service import HistoryService, ModelCatalogService, VideoAnalysisService
+from ..services.openrouter_client import OpenRouterClient, OpenRouterHTTPError
 from ..services.settings_service import SettingsService
 
 router = APIRouter(prefix="/api", tags=["multimodal"])
@@ -42,21 +45,33 @@ def generate_image(payload: ImageGenerationIn, username: str = Depends(get_usern
         raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
 
     caps = ModelCatalogService().get_capabilities()
-    image_models = [m["id"] for m in caps["image_models"] if m.get("id")]
-    if not image_models:
-        raise HTTPException(status_code=400, detail="Nenhum modelo com suporte a geração de imagem foi encontrado.")
+    image_model_ids = [m["id"] for m in caps["image_models"] if m.get("id")]
+    safe_fallback_models = ["sourceful/riverflow-v2-fast"]
 
-    # Mantemos a preferência pela configuração do usuário, mas recuperamos automaticamente
-    # para um modelo válido quando a configuração está obsoleta ou inválida.
-    selected_model = (settings.default_image_model or "").strip()
-    if selected_model not in image_models:
-        selected_model = (caps.get("default_image_model") or "").strip() or image_models[0]
+    requested_model = (payload.model or "").strip()
+    configured_model = (settings.default_image_model or "").strip()
+    default_catalog_model = (caps.get("default_image_model") or "").strip()
+
+    selected_model = requested_model or configured_model or default_catalog_model
+    if image_model_ids and selected_model not in image_model_ids:
+        selected_model = configured_model if configured_model in image_model_ids else default_catalog_model or image_model_ids[0]
+    if not selected_model:
+        selected_model = safe_fallback_models[0]
+
+    storage_service = AssetStorageService(base_dir=get_config().generated_images_dir)
 
     try:
-        result = ImageGenerationService().generate(settings=settings, model=selected_model, prompt=payload.prompt)
+        result = ImageGenerationService(
+            client=OpenRouterClient(timeout_seconds=settings.request_timeout_seconds),
+            storage=storage_service,
+        ).generate(
+            settings=settings,
+            model=selected_model,
+            prompt=payload.prompt,
+        )
     except OpenRouterHTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Falha OpenRouter ({exc.status_code}): {exc.response_text}") from exc
-    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=f"OpenRouter retornou erro HTTP {exc.status_code}") from exc
+    except ImageGenerationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if settings.persist_multimodal_history:
@@ -68,6 +83,7 @@ def generate_image(payload: ImageGenerationIn, username: str = Depends(get_usern
             status="ok",
             response_text=result["text"],
             asset_url=result["image_url"],
+            metadata_json=f"mime_type={result['mime_type']};size_bytes={result['size_bytes']}",
         )
 
     return {"status": "ok", "model": selected_model, "prompt": payload.prompt, **result}
