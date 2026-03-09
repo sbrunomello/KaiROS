@@ -56,6 +56,26 @@ class SettingsIn(BaseModel):
     assistant_name: str = Field(default="Kai", min_length=1, max_length=120)
     http_referer: str = ""
     x_title: str = ""
+    # Legacy OpenRouter fields (deprecated, kept for compatibility)
+    groq_api_key: str = ""
+    huggingface_api_key: str = ""
+    chat_provider: str = "groq"
+    chat_fallback_provider: str = "openrouter"
+    chat_model_name: str = "llama-3.1-8b-instant"
+    speech_provider: str = "groq"
+    speech_model_name: str = "whisper-large-v3-turbo"
+    whisper_cpp_binary_path: str = ""
+    whisper_cpp_model_path: str = ""
+    vision_provider: str = "groq"
+    vision_model_name: str = "llama-3.2-11b-vision-preview"
+    image_gen_provider: str = "openrouter"
+    image_edit_provider: str = "hf"
+    image_edit_enabled: bool = False
+    image_edit_model_name: str = ""
+    video_analysis_mode: str = "legacy"
+    video_enable_vision: bool = False
+    video_frame_sample_seconds: int = Field(default=5, ge=1, le=60)
+    ffmpeg_binary_path: str = "ffmpeg"
     request_timeout_seconds: int = Field(default=25, ge=5, le=300)
     max_video_upload_mb: int = Field(default=20, ge=1, le=200)
     persist_multimodal_history: bool = True

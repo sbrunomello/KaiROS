@@ -6,7 +6,9 @@ Aplicação web multimodal em `./llm` com FastAPI + Jinja + SQLite.
 - Abas: **Chat**, **Imagem**, **Vídeo**, **Configurações**
 - Chat original preservado (histórico por usuário local)
 - Geração de imagem via OpenRouter (`/api/generate-image`)
-- Análise de vídeo via OpenRouter (`/api/analyze-video`)
+- Análise de vídeo com modo `legacy` (OpenRouter) ou `pipeline` desacoplado (`/api/analyze-video`)
+- Análise de imagem via Groq Vision (`/api/analyze-image`)
+- Speech-to-text via Groq/local whisper.cpp (`/api/transcribe-audio`)
 - Catálogo dinâmico de modelos e capacidades (`/api/models/capabilities`)
 - Histórico multimodal (`/api/history/multimodal`)
 - Configurações avançadas (modelos padrão, timeout, limite upload, persistência)
@@ -51,3 +53,7 @@ python -m pytest -q llm/tests
 - **Modelos que realmente suportam imagem**: apenas os retornados pela Models API com `architecture.output_modalities` contendo `image`.
 - **Modelos que realmente suportam vídeo input**: apenas os retornados pela Models API com `architecture.input_modalities` contendo `video`.
 - **Correções aplicadas**: filtro estrito por capabilities oficiais, validação de compatibilidade antes da chamada, fallback só para imagem gratuita real, e logs estruturados de erro HTTP com status/url/payload sanitizado/body.
+
+## Migração de providers
+
+Veja `docs/provider-migration.md` para o plano incremental e novas configurações.

@@ -25,6 +25,8 @@ from ..services.openrouter_client import OpenRouterClient, OpenRouterHTTPError
 from ..services.settings_service import SettingsService
 from ..services.video_analysis_service import VideoAnalysisService
 from ..services.video_input_encoder import VideoInputEncoderError
+from ..providers.registry import ProviderRegistry
+from ..services.speech_service import SpeechService
 
 router = APIRouter(prefix="/api", tags=["multimodal"])
 logger = logging.getLogger(__name__)
@@ -58,8 +60,10 @@ def model_capabilities():
 @router.post("/generate-image", response_model=ImageGenerationOut)
 async def generate_image(request: Request, username: str = Depends(get_username), db: Session = Depends(get_db)):
     settings = SettingsService(db).get()
-    if not settings.openrouter_api_key:
+    if (settings.image_gen_provider == "openrouter" or settings.image_edit_provider == "openrouter") and not settings.openrouter_api_key:
         raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
+    if settings.image_gen_provider == "hf" and not settings.huggingface_api_key:
+        raise HTTPException(status_code=400, detail="Configure a Hugging Face API key nas configurações")
 
     input_file: UploadFile | None = None
     content_type = request.headers.get("content-type", "")
@@ -157,8 +161,10 @@ async def analyze_video(
 ):
     started_at = time.perf_counter()
     settings = SettingsService(db).get()
-    if not settings.openrouter_api_key:
+    if settings.video_analysis_mode == "legacy" and not settings.openrouter_api_key:
         raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
+    if settings.video_analysis_mode == "pipeline" and settings.speech_provider == "groq" and not settings.groq_api_key:
+        raise HTTPException(status_code=400, detail="Configure a Groq API key para usar pipeline de vídeo")
 
     if not video_file:
         raise HTTPException(status_code=400, detail="Adicione um vídeo para análise.")
@@ -172,10 +178,11 @@ async def analyze_video(
     if not selected_model:
         raise HTTPException(status_code=400, detail="modelo ausente")
 
-    caps = ModelCatalogService().get_capabilities()
-    model_ids = {m["id"] for m in caps["video_input_models"]}
-    if model_ids and selected_model not in model_ids:
-        raise HTTPException(status_code=400, detail="O modelo selecionado não suporta análise de vídeo por input.")
+    if settings.video_analysis_mode == "legacy":
+        caps = ModelCatalogService().get_capabilities()
+        model_ids = {m["id"] for m in caps["video_input_models"]}
+        if model_ids and selected_model not in model_ids:
+            raise HTTPException(status_code=400, detail="O modelo selecionado não suporta análise de vídeo por input.")
 
     content_type = (video_file.content_type or "").strip() or "video/mp4"
     config = get_config()
@@ -237,6 +244,78 @@ async def analyze_video(
         "result": result.text,
         "reasoning_enabled": reasoning_enabled,
     }
+
+
+@router.post("/analyze-image")
+async def analyze_image(
+    prompt: str = Form("Descreva esta imagem."),
+    image_file: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+):
+    settings = SettingsService(db).get()
+    if not settings.groq_api_key:
+        raise HTTPException(status_code=400, detail="Configure a Groq API key nas configurações")
+    if not image_file:
+        raise HTTPException(status_code=400, detail="Adicione uma imagem para análise.")
+
+    raw = await image_file.read()
+    config = get_config()
+    input_encoder = ImageInputEncoder()
+    try:
+        input_encoder.validate_mime_type(image_file.content_type or "")
+        input_encoder.enforce_size_limit(image_bytes=raw, max_size_mb=config.max_image_upload_mb)
+    except ImageInputEncoderError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    input_storage = AssetStorageService(base_dir=config.input_images_dir, public_prefix="/input-images")
+    persisted = input_storage.save_input_image(
+        image_bytes=raw,
+        mime_type=image_file.content_type or "image/png",
+        filename_prefix="analyze",
+    )
+
+    provider = ProviderRegistry().resolve_vision(settings)
+    try:
+        vision = provider.describe(str(persisted["file_path"]), prompt, settings.__dict__.copy())
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Falha no provider de vision: {exc}") from exc
+
+    return {
+        "status": "ok",
+        "prompt": prompt,
+        "model": vision.model_used,
+        "result": vision.text,
+        "image_url": persisted["public_url"],
+    }
+
+
+@router.post("/transcribe-audio")
+async def transcribe_audio(audio_file: UploadFile | None = File(None), db: Session = Depends(get_db)):
+    settings = SettingsService(db).get()
+    if not audio_file:
+        raise HTTPException(status_code=400, detail="Adicione um arquivo de áudio para transcrição.")
+
+    raw = await audio_file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Arquivo de áudio vazio.")
+
+    import tempfile
+    from pathlib import Path
+
+    suffix = Path(audio_file.filename or "audio.wav").suffix or ".wav"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(raw)
+        tmp_path = Path(tmp.name)
+
+    try:
+        result = SpeechService().transcribe(str(tmp_path), settings)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    finally:
+        tmp_path.unlink(missing_ok=True)
+        Path(f"{tmp_path}.txt").unlink(missing_ok=True)
+
+    return {"status": "ok", **result}
 
 
 @router.get("/history/multimodal", response_model=list[MultimodalHistoryOut])

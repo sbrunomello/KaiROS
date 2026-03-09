@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import base64
 import binascii
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from ..models import Settings
+from ..providers.registry import ProviderRegistry
 from .asset_storage_service import AssetStorageService
 from .image_input_encoder import ImageInputEncoder
 from .openrouter_client import OpenRouterClient
@@ -21,6 +24,7 @@ class ImageGenerationService:
         generated_storage: AssetStorageService | None = None,
         input_storage: AssetStorageService | None = None,
         input_encoder: ImageInputEncoder | None = None,
+        registry: ProviderRegistry | None = None,
     ):
         self.client = client or OpenRouterClient()
         if generated_storage is None:
@@ -28,6 +32,7 @@ class ImageGenerationService:
         self.generated_storage = generated_storage
         self.input_storage = input_storage
         self.input_encoder = input_encoder or ImageInputEncoder()
+        self.registry = registry or ProviderRegistry()
 
     def build_payload(
         self,
@@ -86,15 +91,38 @@ class ImageGenerationService:
                 )
                 input_image_url = str(saved_input["public_url"])
 
-        payload = self.build_payload(model=model, prompt=prompt, mode=mode, input_image_data_url=input_image_data_url)
-        response = self.client.chat_completion(
-            api_key=settings.openrouter_api_key,
-            payload=payload,
-            http_referer=settings.http_referer,
-            x_title=settings.x_title,
-        )
-        image_data_url = self._extract_data_url(response)
-        mime_type, image_bytes = self._decode_data_url(image_data_url)
+        provider_name = (getattr(settings, "image_gen_provider", "openrouter") or "openrouter").lower()
+        if mode == "image_to_image":
+            provider_name = (getattr(settings, "image_edit_provider", provider_name) or provider_name).lower()
+
+        if provider_name == "openrouter":
+            payload = self.build_payload(model=model, prompt=prompt, mode=mode, input_image_data_url=input_image_data_url)
+            response = self.client.chat_completion(
+                api_key=settings.openrouter_api_key,
+                payload=payload,
+                http_referer=settings.http_referer,
+                x_title=settings.x_title,
+            )
+            image_data_url = self._extract_data_url(response)
+            mime_type, image_bytes = self._decode_data_url(image_data_url)
+            text = self._extract_text(response)
+        else:
+            options = settings.__dict__.copy()
+            options["default_image_model"] = model
+            if mode == "image_to_image":
+                if not getattr(settings, "image_edit_enabled", False):
+                    raise ImageGenerationError("image->image desabilitado por configuração")
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                    tmp.write(input_image_bytes or b"")
+                    tmp_path = Path(tmp.name)
+                try:
+                    result = self.registry.resolve_image_edit(settings).edit(str(tmp_path), prompt, options)
+                finally:
+                    tmp_path.unlink(missing_ok=True)
+            else:
+                result = self.registry.resolve_image_gen(settings).generate(prompt, options)
+            mime_type, image_bytes, text = result.mime_type, result.image_bytes, result.text
+
         saved_asset = self.generated_storage.save_generated_image(image_bytes=image_bytes, mime_type=mime_type)
 
         return {
@@ -102,7 +130,7 @@ class ImageGenerationService:
             "file_path": saved_asset["file_path"],
             "mime_type": saved_asset["mime_type"],
             "size_bytes": saved_asset["size_bytes"],
-            "text": self._extract_text(response),
+            "text": text,
             "input_image_url": input_image_url,
         }
 
