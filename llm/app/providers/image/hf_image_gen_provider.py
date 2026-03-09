@@ -11,7 +11,7 @@ class HFImageGenProvider:
 
     def generate(self, prompt: str, options: dict) -> ImageResult:
         api_key = options.get("huggingface_api_key", "")
-        model = options.get("default_image_model", "black-forest-labs/FLUX.1-schnell")
+        model = options.get("hf_default_image_model") or options.get("default_image_model") or "black-forest-labs/FLUX.1-schnell"
         if not api_key:
             raise ValueError("Hugging Face API key não configurada")
 

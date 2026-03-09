@@ -34,12 +34,12 @@ class AudioExtractionService:
 
 
 class FrameSamplingService:
-    def sample(self, video_path: str, interval_seconds: int) -> list[str]:
+    def sample(self, video_path: str, interval_seconds: int, ffmpeg_binary_path: str = "ffmpeg") -> list[str]:
         frame_dir = Path(f"{video_path}_frames")
         frame_dir.mkdir(parents=True, exist_ok=True)
         output_pattern = frame_dir / "frame_%03d.jpg"
         cmd = [
-            "ffmpeg",
+            ffmpeg_binary_path,
             "-y",
             "-i",
             video_path,
@@ -142,7 +142,7 @@ class VideoAnalysisService:
             visual_context = ""
             if settings.video_enable_vision:
                 try:
-                    frames = self.frame_sampler.sample(str(video_path), settings.video_frame_sample_seconds)
+                    frames = self.frame_sampler.sample(str(video_path), settings.video_frame_sample_seconds, settings.ffmpeg_binary_path)
                     frame_notes = []
                     vision_provider = self.registry.resolve_vision(settings)
                     for frame in frames[:5]:

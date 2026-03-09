@@ -10,6 +10,7 @@ from .image.hf_image_gen_provider import HFImageGenProvider
 from .speech.groq_speech_provider import GroqSpeechProvider
 from .speech.local_whisper_provider import LocalWhisperProvider
 from .vision.groq_vision_provider import GroqVisionProvider
+from .vision.openrouter_vision_provider import OpenRouterVisionProvider
 
 
 class ProviderRegistry:
@@ -24,7 +25,7 @@ class ProviderRegistry:
             "groq": GroqSpeechProvider(),
             "local": LocalWhisperProvider(),
         }
-        self.vision_providers = {"groq": GroqVisionProvider()}
+        self.vision_providers = {"groq": GroqVisionProvider(), "openrouter": OpenRouterVisionProvider()}
         self.image_gen_providers = {
             "hf": HFImageGenProvider(),
         }

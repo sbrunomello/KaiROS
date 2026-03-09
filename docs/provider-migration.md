@@ -28,6 +28,8 @@ Este documento descreve a migração incremental de OpenRouter para uma arquitet
 - `vision_provider=groq`
 - `vision_model_name`
 - `image_gen_provider=openrouter|hf`
+- `openrouter_default_image_model`
+- `hf_default_image_model`
 - `huggingface_api_key`
 - `image_edit_enabled=true|false`
 - `video_analysis_mode=legacy|pipeline`

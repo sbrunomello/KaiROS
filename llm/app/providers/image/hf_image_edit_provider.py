@@ -17,7 +17,7 @@ class HFImageEditProvider:
         api_key = options.get("huggingface_api_key", "")
         if not api_key:
             raise ValueError("Hugging Face API key não configurada")
-        model = options.get("image_edit_model_name") or options.get("default_image_model")
+        model = options.get("image_edit_model_name") or options.get("hf_default_image_model") or options.get("default_image_model")
         if not model:
             raise ValueError("Modelo de edição de imagem não configurado")
 

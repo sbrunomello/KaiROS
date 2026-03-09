@@ -60,10 +60,6 @@ def model_capabilities():
 @router.post("/generate-image", response_model=ImageGenerationOut)
 async def generate_image(request: Request, username: str = Depends(get_username), db: Session = Depends(get_db)):
     settings = SettingsService(db).get()
-    if (settings.image_gen_provider == "openrouter" or settings.image_edit_provider == "openrouter") and not settings.openrouter_api_key:
-        raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
-    if settings.image_gen_provider == "hf" and not settings.huggingface_api_key:
-        raise HTTPException(status_code=400, detail="Configure a Hugging Face API key nas configurações")
 
     input_file: UploadFile | None = None
     content_type = request.headers.get("content-type", "")
@@ -79,19 +75,26 @@ async def generate_image(request: Request, username: str = Depends(get_username)
         body = await request.json()
         payload = ImageGenerationIn(**body)
 
-    caps = ModelCatalogService().get_capabilities()
-    image_model_ids = [m["id"] for m in caps["image_models"] if m.get("id")]
-    safe_fallback_models = ["bytedance-seed/seedream-4.5"]
+    image_provider_for_mode = (settings.image_edit_provider if payload.mode == "image_to_image" else settings.image_gen_provider or "openrouter").lower()
+    if image_provider_for_mode == "openrouter" and not settings.openrouter_api_key:
+        raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
+    if image_provider_for_mode == "hf" and not settings.huggingface_api_key:
+        raise HTTPException(status_code=400, detail="Configure a Hugging Face API key nas configurações")
 
     requested_model = (payload.model or "").strip()
-    configured_model = (settings.default_image_model or "").strip()
-    default_catalog_model = (caps.get("default_image_model") or "").strip()
+    image_provider = (settings.image_edit_provider if payload.mode == "image_to_image" else settings.image_gen_provider or "openrouter").lower()
 
-    selected_model = requested_model or configured_model or default_catalog_model
-    if image_model_ids and selected_model not in image_model_ids:
-        selected_model = configured_model if configured_model in image_model_ids else default_catalog_model or image_model_ids[0]
-    if not selected_model:
-        selected_model = safe_fallback_models[0]
+    if image_provider == "hf":
+        configured_model = (settings.hf_default_image_model or "").strip() or (settings.default_image_model or "").strip()
+        selected_model = requested_model or configured_model or "black-forest-labs/FLUX.1-schnell"
+    else:
+        caps = ModelCatalogService().get_capabilities()
+        image_model_ids = [m["id"] for m in caps["image_models"] if m.get("id")]
+        configured_model = (settings.openrouter_default_image_model or "").strip() or (settings.default_image_model or "").strip()
+        default_catalog_model = (caps.get("default_image_model") or "").strip()
+        selected_model = requested_model or configured_model or default_catalog_model or "bytedance-seed/seedream-4.5"
+        if image_model_ids and selected_model not in image_model_ids:
+            selected_model = configured_model if configured_model in image_model_ids else default_catalog_model or image_model_ids[0]
 
     config = get_config()
     generated_storage = AssetStorageService(base_dir=config.generated_images_dir)
@@ -253,8 +256,11 @@ async def analyze_image(
     db: Session = Depends(get_db),
 ):
     settings = SettingsService(db).get()
-    if not settings.groq_api_key:
+    vision_provider = (settings.vision_provider or "groq").lower()
+    if vision_provider == "groq" and not settings.groq_api_key:
         raise HTTPException(status_code=400, detail="Configure a Groq API key nas configurações")
+    if vision_provider == "openrouter" and not settings.openrouter_api_key:
+        raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
     if not image_file:
         raise HTTPException(status_code=400, detail="Adicione uma imagem para análise.")
 
@@ -274,8 +280,8 @@ async def analyze_image(
         filename_prefix="analyze",
     )
 
-    provider = ProviderRegistry().resolve_vision(settings)
     try:
+        provider = ProviderRegistry().resolve_vision(settings)
         vision = provider.describe(str(persisted["file_path"]), prompt, settings.__dict__.copy())
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Falha no provider de vision: {exc}") from exc

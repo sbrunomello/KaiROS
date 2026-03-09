@@ -45,13 +45,15 @@ def _ensure_settings_columns() -> None:
         "vision_provider": "VARCHAR(32) DEFAULT 'groq'",
         "vision_model_name": "VARCHAR(255) DEFAULT 'llama-3.2-11b-vision-preview'",
         "image_gen_provider": "VARCHAR(32) DEFAULT 'openrouter'",
-        "image_edit_provider": "VARCHAR(32) DEFAULT 'hf'",
+        "image_edit_provider": "VARCHAR(32) DEFAULT 'openrouter'",
         "image_edit_enabled": "BOOLEAN DEFAULT 0",
         "image_edit_model_name": "VARCHAR(255) DEFAULT ''",
         "video_analysis_mode": "VARCHAR(32) DEFAULT 'legacy'",
         "video_enable_vision": "BOOLEAN DEFAULT 0",
         "video_frame_sample_seconds": "INTEGER DEFAULT 5",
         "ffmpeg_binary_path": "VARCHAR(255) DEFAULT 'ffmpeg'",
+        "openrouter_default_image_model": "VARCHAR(255) DEFAULT 'bytedance-seed/seedream-4.5'",
+        "hf_default_image_model": "VARCHAR(255) DEFAULT 'black-forest-labs/FLUX.1-schnell'",
     }
     with engine.begin() as conn:
         columns = conn.execute(text("PRAGMA table_info(settings)")).fetchall()
