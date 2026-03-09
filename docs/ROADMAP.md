@@ -48,3 +48,50 @@ Evoluir de **tracking apenas por HSV** para um pipeline **híbrido e resiliente*
 
 ### Evolução seguinte (depois deste passo)
 Após estabilizar o híbrido HSV+movimento, o próximo salto é detector por IA leve (ex.: MobileNet/YOLO-nano em ROI), mantendo HSV como fallback de baixo custo.
+
+## Próximas tasks (visão computacional) — backlog priorizado
+
+> Foco: aumentar robustez do tracking em produção sem perder desempenho em hardware embarcado.
+
+### Sprint 1 — estabilidade e observabilidade
+
+1. **Instrumentar métricas por estágio do pipeline**
+   - Capturar latência de `capture`, `preprocess`, `detect_hsv`, `detect_motion`, `control`.
+   - Publicar agregados (p50/p95) no health endpoint para diagnóstico rápido.
+2. **Criar dataset de regressão local (offline)**
+   - Salvar pequenos clipes com cenários reais: variação de luz, oclusão parcial e múltiplos objetos.
+   - Definir suíte de replay para comparar `target_found`, jitter e tempo de reacquisição.
+3. **Histerese de decisão no lock do alvo**
+   - Requerer score mínimo para entrar em `TRACKING` e um score menor para sair (evita oscilação).
+4. **Guard rails de servo por software**
+   - Clamp de velocidade angular máxima por frame.
+   - Cooldown curto após perda de alvo para reduzir caça agressiva.
+
+### Sprint 2 — robustez em cenário real
+
+1. **Auto-ajuste dinâmico de HSV por região de interesse (ROI)**
+   - Ajustar limiares com base em estatísticas locais quando confiança cair de forma contínua.
+2. **Validação geométrica do alvo**
+   - Adicionar filtros de razão de aspecto, área relativa e estabilidade do centróide.
+3. **Mecanismo de re-identificação simplificado**
+   - Cache de assinatura visual leve (histograma HSV compactado) para evitar troca de alvo.
+4. **Modo degradação controlada**
+   - Quando FPS cair abaixo do limite, reduzir resolução/ROI progressivamente.
+
+### Sprint 3 — preparação para detector por IA leve
+
+1. **Arquitetura plugável de detectores**
+   - Interface única para `HSV`, `Motion` e `Neural` com contrato de confiança padronizado.
+2. **Pipeline assíncrono (frame queue)**
+   - Separar captura, inferência e controle para reduzir bloqueio em picos.
+3. **Benchmark embarcado**
+   - Medir consumo de CPU/RAM/temperatura por detector e por resolução.
+4. **Critérios de go/no-go para YOLO-nano/MobileNet**
+   - Só promover para produção se atender metas de FPS mínimo e latência máxima.
+
+### Definition of Done (DoD) para cada task
+
+- Código com testes unitários e de regressão para regras de estado.
+- Logs estruturados com campos consistentes para telemetria.
+- Configuração documentada em `config.yaml` com valores padrão seguros.
+- Resultado comparado com baseline anterior (métrica e evidência no PR).
