@@ -119,6 +119,42 @@ def test_generate_image_uses_only_configured_default_model(client, monkeypatch):
     assert called['model'] == 'img:free'
 
 
+def test_generate_image_falls_back_when_configured_default_model_is_invalid(client, monkeypatch):
+    client.put('/api/settings', json={
+        'openrouter_api_key': 'k', 'model_name': 'openrouter/auto', 'temperature': 0.7,
+        'system_prompt': 'x', 'assistant_name': 'Kai', 'http_referer': '', 'x_title': '',
+        'default_image_model': 'old-or-text-only-model', 'default_video_analysis_model': 'vid-model',
+        'default_video_generation_model': '', 'request_timeout_seconds': 25,
+        'max_video_upload_mb': 20, 'persist_multimodal_history': True,
+    })
+
+    monkeypatch.setattr('llm.app.routes.api_multimodal.ModelCatalogService.get_capabilities', lambda _self: {
+        'models': [],
+        'image_models': [
+            {'id': 'img:free', 'name': 'img', 'input_modalities': [], 'output_modalities': ['image'], 'is_free': True, 'supports_image_generation': True, 'supports_video_input': False},
+            {'id': 'img-paid', 'name': 'img paid', 'input_modalities': [], 'output_modalities': ['image'], 'is_free': False, 'supports_image_generation': True, 'supports_video_input': False},
+        ],
+        'image_models_free': [{'id': 'img:free', 'name': 'img', 'input_modalities': [], 'output_modalities': ['image'], 'is_free': True, 'supports_image_generation': True, 'supports_video_input': False}],
+        'image_models_paid': [{'id': 'img-paid', 'name': 'img paid', 'input_modalities': [], 'output_modalities': ['image'], 'is_free': False, 'supports_image_generation': True, 'supports_video_input': False}],
+        'video_input_models': [],
+        'video_generation_models': [],
+        'default_image_model': 'img:free'
+    })
+
+    called = {}
+
+    def fake_generate(_self, settings, model, prompt):
+        called['model'] = model
+        return {'image_url': 'https://example.com/x.png', 'text': 'ok'}
+
+    monkeypatch.setattr('llm.app.services.multimodal_service.ImageGenerationService.generate', fake_generate)
+
+    res = client.post('/api/generate-image', headers={'X-Username': 'usuario1'}, json={'prompt': 'cat', 'model': 'ignored-by-api'})
+    assert res.status_code == 200
+    assert res.json()['model'] == 'img:free'
+    assert called['model'] == 'img:free'
+
+
 def test_analyze_video_uses_only_configured_default_model(client, monkeypatch):
     client.put('/api/settings', json={
         'openrouter_api_key': 'k', 'model_name': 'openrouter/auto', 'temperature': 0.7,

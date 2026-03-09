@@ -204,11 +204,13 @@ async function saveSettings(e) {
 async function generateImage() {
   setStatus('image-status', 'Gerando imagem...');
   try {
-    // Usa exclusivamente o modelo configurado na aba de configurações.
-    const selectedModel = (document.getElementById('default_image_model').value || '').trim();
-    if (!selectedModel) {
-      throw new Error('Defina o "Modelo padrão de imagem" na aba Configurações antes de gerar.');
-    }
+    // Preferimos o modelo configurado, mas fazemos fallback para o catálogo quando vazio.
+    const selectedModel = (document.getElementById('default_image_model').value || '').trim()
+      || modelCapabilities.default_image_model
+      || (modelCapabilities.image_models_free?.[0]?.id)
+      || (modelCapabilities.image_models?.[0]?.id)
+      || '';
+    if (!selectedModel) throw new Error('Nenhum modelo de imagem disponível para este provedor/API key.');
     const payload = { prompt: document.getElementById('image-prompt').value.trim(), model: selectedModel };
     const data = await fetchJson(apiUrl('/api/generate-image'), { method: 'POST', headers: { 'Content-Type': 'application/json', ...usernameHeaders() }, body: JSON.stringify(payload) });
     const holder = document.getElementById('image-result');
