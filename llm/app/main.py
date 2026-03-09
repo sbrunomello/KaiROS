@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import get_config
 from .db import Base, engine
 from .logging_conf import setup_logging
-from .routes import api_chat, api_chats, api_health, api_settings, web
+from .routes import api_chat, api_chats, api_health, api_multimodal, api_settings, web
 
 config = get_config()
 setup_logging(config.debug)
@@ -25,6 +25,24 @@ def _ensure_username_column() -> None:
 
 _ensure_username_column()
 
+def _ensure_settings_columns() -> None:
+    expected = {
+        "default_image_model": "VARCHAR(255) DEFAULT 'google/gemini-3.1-flash-image-preview'",
+        "default_video_analysis_model": "VARCHAR(255) DEFAULT 'google/gemini-2.5-pro'",
+        "default_video_generation_model": "VARCHAR(255) DEFAULT ''",
+        "request_timeout_seconds": "INTEGER DEFAULT 25",
+        "max_video_upload_mb": "INTEGER DEFAULT 20",
+        "persist_multimodal_history": "BOOLEAN DEFAULT 1",
+    }
+    with engine.begin() as conn:
+        columns = conn.execute(text("PRAGMA table_info(settings)")).fetchall()
+        names = {c[1] for c in columns}
+        for name, ddl in expected.items():
+            if name not in names:
+                conn.execute(text(f"ALTER TABLE settings ADD COLUMN {name} {ddl}"))
+
+_ensure_settings_columns()
+
 app = FastAPI(title=config.app_name)
 app.mount("/static", StaticFiles(directory="llm/app/static"), name="static")
 
@@ -33,3 +51,4 @@ app.include_router(api_health.router)
 app.include_router(api_chats.router)
 app.include_router(api_chat.router)
 app.include_router(api_settings.router)
+app.include_router(api_multimodal.router)

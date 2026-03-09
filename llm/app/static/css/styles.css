@@ -22,3 +22,12 @@ label { display:flex; flex-direction:column; gap:6px; }
 
 input { border-radius:8px; border:1px solid #475569; padding:8px; }
 .active-user { margin: 0; font-size: 12px; color: #93c5fd; }
+
+
+.top-tabs { display:flex; gap:8px; padding:12px; background:#020617; position:sticky; top:0; z-index:5; }
+.tab-btn.active { background:#0ea5e9; }
+.tab-section { display:none; }
+.tab-section.active { display:block; }
+.panel { max-width:900px; margin:16px auto; padding:16px; background:#1e293b; border-radius:12px; }
+.generated-image { max-width:100%; border-radius:12px; margin-top:8px; }
+pre { white-space:pre-wrap; background:#0b1220; padding:12px; border-radius:8px; }

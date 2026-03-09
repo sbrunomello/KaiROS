@@ -1,102 +1,47 @@
 # KaiROS LLM (subprojeto isolado)
 
-Aplicação web de chat estilo ChatGPT, **isolada em `./llm`**, com FastAPI + Jinja + SQLite, pronta para rodar 24/7 em Orange Pi.
+Aplicação web multimodal em `./llm` com FastAPI + Jinja + SQLite.
 
 ## Recursos
-- Chat web responsivo (desktop/celular)
-- Sidebar com histórico de conversas
-- Botão **Novo chat**
-- Página de configurações
-- Configuração de API key OpenRouter
-- Campo de modelo **livre** (sem dropdown fixo)
-- Persistência local de conversas, mensagens e settings
-- Isolamento local por usuário (username) para uso compartilhado no mesmo dispositivo
-- Healthcheck (`/healthz`) e status (`/status`)
-- Testes automatizados com `pytest`
+- Abas: **Chat**, **Imagem**, **Vídeo**, **Configurações**
+- Chat original preservado (histórico por usuário local)
+- Geração de imagem via OpenRouter (`/api/generate-image`)
+- Análise de vídeo via OpenRouter (`/api/analyze-video`)
+- Catálogo dinâmico de modelos e capacidades (`/api/models/capabilities`)
+- Histórico multimodal (`/api/history/multimodal`)
+- Configurações avançadas (modelos padrão, timeout, limite upload, persistência)
 
-## Arquitetura
-- `app/main.py`: bootstrap da aplicação
-- `app/routes/`: rotas web + APIs
-- `app/services/`: regras de negócio, prompt/contexto, router de modelo, provider LLM
-- `app/templates/`: interface HTML
-- `app/static/`: CSS/JS leve
-- `data/`: banco SQLite
-- `deploy/`: systemd + install
-- `tests/`: suíte automatizada
+## Pesquisa oficial utilizada (OpenRouter)
+Foram consultadas fontes oficiais antes da implementação:
+- API Reference de Chat Completions (endpoint `/api/v1/chat/completions`)
+- Models API (`/api/v1/models`) para descoberta de capacidades por `architecture.input_modalities` e `architecture.output_modalities`
+- Documentação oficial de multimodal, image generation e video inputs no portal OpenRouter
 
----
+### Capacidades confirmadas
+- **Image generation**: suportada para modelos com `output_modalities` contendo `image`.
+- **Video analysis (input)**: suportada para modelos com `input_modalities` contendo `video`, enviando conteúdo multimodal com `video_url` (ex.: data URL base64).
+- **Video generation output**: **não habilitado** nesta entrega por ausência de contrato oficial implementável estável no fluxo atual deste projeto (endpoint/payload/retorno/polling com garantia).
 
-## Pré-requisitos
+## Uso das novas abas
+1. Abra `/`.
+2. Em **Configurações**, informe API key e modelos padrão.
+3. Clique em **Atualizar catálogo de modelos** para carregar capacidades reais.
+4. Em **Imagem**, escolha modelo compatível e clique **Gerar**.
+5. Em **Vídeo**, selecione arquivo + prompt e clique **Analisar**.
 
-- Python 3.10+
-- `python3-venv`
-- acesso de rede para chamar provider LLM (quando usar OpenRouter)
-
----
-
-## Como rodar localmente (desenvolvimento)
-
-Na raiz do repositório:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-pip install -r llm/requirements.txt
-```
-
-Suba a aplicação:
-
-```bash
-uvicorn llm.app.main:app --host 0.0.0.0 --port 8091
-```
-
-Acesse:
-- Local: `http://localhost:8091`
-- Rede local: `http://<IP_DA_MAQUINA>:8091`
-
----
-
-## Configuração OpenRouter
-
-1. Abra `http://<host>:8091/settings`
-2. Preencha API key
-3. Informe o modelo em texto livre (ex.: `deepseek/deepseek-chat`)
-4. Salve
-
----
-
-## Rodar com systemd (produção)
-
-Arquivos em `llm/deploy/`:
-- `env.example`
-- `llm.service`
-- `install.sh`
-
-Instalação automatizada:
-
-```bash
-bash llm/deploy/install.sh
-```
-
-Após instalação:
-- ajuste `llm/deploy/.env` conforme necessário
-- valide com `systemctl status llm.service`
-
----
-
-## Testes
-
-```bash
-.venv/bin/python -m pytest -q llm/tests
-```
+## Endpoints internos
+- `GET /api/models`
+- `GET /api/models/capabilities`
+- `POST /api/generate-image`
+- `POST /api/analyze-video`
+- `POST /api/generate-video` (placeholder com 501)
+- `GET /api/history/multimodal`
 
 ## Limitações atuais
-- Login local simples por username (sem senha/JWT, proposital para uso offline/local)
-- Sem streaming de tokens
-- Sem integração com robô (proposital)
+- Geração de vídeo está explícita como **experimental/indisponível** até suporte oficial utilizável.
+- Upload de vídeo limitado por configuração (`max_video_upload_mb`).
 
-## Próximos passos sugeridos
-- Streaming SSE para UX melhor
-- Backup/exportação de conversas
-- Observabilidade (métricas)
+## Testes
+```bash
+python -m pytest -q llm/tests
+```
