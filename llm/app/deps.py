@@ -4,15 +4,25 @@ import re
 
 from fastapi import Header, HTTPException, Query
 
-from .services.llm_service import MockProvider, OpenRouterProvider, ResilientLLMService
+from .providers.registry import ProviderRegistry
+from .services.llm_service import MockProvider, ResilientLLMService
 
 USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{3,32}$")
 
 
-def get_llm_service() -> ResilientLLMService:
-    provider_name = os.getenv("LLM_PROVIDER", "openrouter").lower()
-    provider = MockProvider() if provider_name == "mock" else OpenRouterProvider()
-    return ResilientLLMService(provider)
+class MockResilientService:
+    def __init__(self):
+        self.provider = MockProvider()
+
+    def generate(self, messages: list[dict], settings: object):
+        return self.provider.generate(messages, settings)
+
+
+def get_llm_service() -> ResilientLLMService | MockResilientService:
+    provider_name = os.getenv("LLM_PROVIDER", "registry").lower()
+    if provider_name == "mock":
+        return MockResilientService()
+    return ResilientLLMService(ProviderRegistry())
 
 
 def get_username(

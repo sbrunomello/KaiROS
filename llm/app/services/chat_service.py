@@ -34,9 +34,11 @@ class ChatService:
         history = [{"role": msg.role, "content": msg.content} for msg in conversation.messages]
         prompt_messages = self.prompt_service.build_messages(settings.system_prompt, history, content)
 
-        model_candidates = self.router.candidates(settings.model_name)
+        model_name = settings.chat_model_name or settings.model_name
+        model_candidates = self.router.candidates(model_name)
         result = None
         for model in model_candidates:
+            settings.chat_model_name = model
             settings.model_name = model
             result = self.llm_service.generate(prompt_messages, settings)
             if result.status == "ok":
