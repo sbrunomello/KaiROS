@@ -66,9 +66,22 @@ class OpenRouterClient:
         start = time.perf_counter()
         url = f"{self.base_url}/chat/completions"
         with httpx.Client(timeout=self.timeout_seconds) as client:
-            response = client.post(url, headers=headers, json=payload)
             try:
+                response = client.post(url, headers=headers, json=payload)
                 response.raise_for_status()
+            except httpx.TimeoutException as exc:
+                sanitized_payload = self._sanitize_payload(payload)
+                logger.error(
+                    "openrouter_timeout_error url=%s request_payload=%s",
+                    url,
+                    sanitized_payload,
+                )
+                raise OpenRouterHTTPError(
+                    status_code=504,
+                    url=url,
+                    request_payload=sanitized_payload,
+                    response_text="timeout",
+                ) from exc
             except httpx.HTTPStatusError as exc:
                 sanitized_payload = self._sanitize_payload(payload)
                 logger.error(
@@ -76,7 +89,7 @@ class OpenRouterClient:
                     exc.response.status_code,
                     str(exc.request.url),
                     sanitized_payload,
-                    exc.response.text,
+                    exc.response.text[:500],
                 )
                 raise OpenRouterHTTPError(
                     status_code=exc.response.status_code,

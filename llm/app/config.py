@@ -17,6 +17,7 @@ class AppConfig(BaseSettings):
     base_dir: Path = Path(__file__).resolve().parents[1]
     data_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[1] / "data")
     db_path: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[1] / "data" / "llm.db")
+    generated_images_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[1] / "uploads" / "generated-images")
 
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_timeout_seconds: int = 25
@@ -33,4 +34,5 @@ def get_config() -> AppConfig:
     cfg = AppConfig()
     cfg.data_dir.mkdir(parents=True, exist_ok=True)
     cfg.db_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg.generated_images_dir.mkdir(parents=True, exist_ok=True)
     return cfg

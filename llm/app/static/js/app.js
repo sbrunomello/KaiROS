@@ -138,12 +138,26 @@ async function loadCapabilities() {
   }
 
   renderImageModelCatalog();
+  populateImageModelSelect();
 
   const defaultInput = document.getElementById('default_image_model');
-  // Sempre prioriza gratuito como padrão automático, sem impedir escolha manual de pago.
   if (!defaultInput.value && modelCapabilities.default_image_model) {
     defaultInput.value = modelCapabilities.default_image_model;
   }
+}
+
+function populateImageModelSelect() {
+  const select = document.getElementById('image-model-select');
+  if (!select) return;
+
+  const safeDefaults = ['sourceful/riverflow-v2-fast'];
+  const catalogModels = modelCapabilities.image_models || [];
+  const ids = [...new Set([...safeDefaults, ...catalogModels.map((m) => m.id).filter(Boolean)])];
+  const configuredDefault = (document.getElementById('default_image_model')?.value || '').trim();
+  const preferredModel = configuredDefault || modelCapabilities.default_image_model || safeDefaults[0];
+
+  select.innerHTML = ids.map((modelId) => `<option value="${modelId}">${modelId}</option>`).join('');
+  if (ids.includes(preferredModel)) select.value = preferredModel;
 }
 
 function renderImageModelCatalog() {
@@ -202,21 +216,39 @@ async function saveSettings(e) {
 }
 
 async function generateImage() {
+  const prompt = document.getElementById('image-prompt').value.trim();
+  if (!prompt) {
+    setStatus('image-status', 'Digite um prompt para gerar imagem.');
+    return;
+  }
+
+  const button = document.getElementById('generate-image-btn');
+  button.disabled = true;
   setStatus('image-status', 'Gerando imagem...');
+
   try {
-    // Preferimos o modelo configurado, mas fazemos fallback para o catálogo quando vazio.
-    const selectedModel = (document.getElementById('default_image_model').value || '').trim()
-      || modelCapabilities.default_image_model
-      || (modelCapabilities.image_models_free?.[0]?.id)
-      || (modelCapabilities.image_models?.[0]?.id)
-      || '';
-    if (!selectedModel) throw new Error('Nenhum modelo de imagem disponível para este provedor/API key.');
-    const payload = { prompt: document.getElementById('image-prompt').value.trim(), model: selectedModel };
-    const data = await fetchJson(apiUrl('/api/generate-image'), { method: 'POST', headers: { 'Content-Type': 'application/json', ...usernameHeaders() }, body: JSON.stringify(payload) });
+    const selectedModel = document.getElementById('image-model-select').value;
+    if (!selectedModel) throw new Error('Nenhum modelo de imagem disponível.');
+
+    const payload = { prompt, model: selectedModel };
+    const data = await fetchJson(apiUrl('/api/generate-image'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...usernameHeaders() },
+      body: JSON.stringify(payload),
+    });
     const holder = document.getElementById('image-result');
-    holder.innerHTML = `<img src="${data.image_url}" alt="imagem gerada" class="generated-image" /><p>${data.text || ''}</p><a href="${data.image_url}" target="_blank">Abrir</a> | <a href="${data.image_url}" download>Download</a>`;
+    holder.innerHTML = `
+      <img src="${data.image_url}" alt="imagem gerada" class="generated-image" />
+      <p>${data.text || ''}</p>
+      <p><strong>Modelo:</strong> ${data.model} | <strong>Tipo:</strong> ${data.mime_type} | <strong>Tamanho:</strong> ${data.size_bytes} bytes</p>
+      <a href="${data.image_url}" target="_blank">Abrir</a> | <a href="${data.image_url}" download>Download</a>
+    `;
     setStatus('image-status', 'Imagem gerada com sucesso.');
-  } catch (e) { setStatus('image-status', `Erro: ${e.message}`); }
+  } catch (e) {
+    setStatus('image-status', `Erro: ${e.message}`);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function analyzeVideo() {

@@ -48,7 +48,7 @@ class ChatResponseOut(BaseModel):
 class SettingsIn(BaseModel):
     openrouter_api_key: str = ""
     model_name: str = "openrouter/auto"
-    default_image_model: str = "google/gemini-2.5-flash-image-preview:free"
+    default_image_model: str = "sourceful/riverflow-v2-fast"
     default_video_analysis_model: str = "google/gemini-2.5-pro"
     default_video_generation_model: str = ""
     temperature: float = Field(default=0.7, ge=0, le=2)
@@ -95,6 +95,9 @@ class ImageGenerationOut(BaseModel):
     model: str
     prompt: str
     image_url: str
+    file_path: str
+    mime_type: str
+    size_bytes: int
     text: str = ""
 
 

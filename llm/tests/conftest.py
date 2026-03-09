@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 os.environ["LLM_PROVIDER"] = "mock"
 os.environ["LLM_DB_PATH"] = str((Path(__file__).parent / "test.db").resolve())
+os.environ["LLM_GENERATED_IMAGES_DIR"] = str((Path(__file__).parent / "generated-images").resolve())
 
 from llm.app.main import app  # noqa: E402
 from llm.app.db import Base, engine  # noqa: E402
