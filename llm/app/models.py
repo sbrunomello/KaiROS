@@ -23,7 +23,7 @@ class Settings(Base):
     x_title: Mapped[str] = mapped_column(String(255), default="")
 
     default_image_model: Mapped[str] = mapped_column(String(255), default="bytedance-seed/seedream-4.5")
-    default_video_analysis_model: Mapped[str] = mapped_column(String(255), default="google/gemini-2.5-pro")
+    default_video_analysis_model: Mapped[str] = mapped_column(String(255), default="nvidia/nemotron-nano-12b-v2-vl:free")
     default_video_generation_model: Mapped[str] = mapped_column(String(255), default="")
     request_timeout_seconds: Mapped[int] = mapped_column(Integer, default=25)
     max_video_upload_mb: Mapped[int] = mapped_column(Integer, default=20)

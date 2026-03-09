@@ -19,6 +19,7 @@ class AppConfig(BaseSettings):
     db_path: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[1] / "data" / "llm.db")
     generated_images_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[1] / "uploads" / "generated-images")
     input_images_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[1] / "uploads" / "input-images")
+    input_videos_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[1] / "uploads" / "input-videos")
     max_image_upload_mb: int = 10
 
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
@@ -38,4 +39,5 @@ def get_config() -> AppConfig:
     cfg.db_path.parent.mkdir(parents=True, exist_ok=True)
     cfg.generated_images_dir.mkdir(parents=True, exist_ok=True)
     cfg.input_images_dir.mkdir(parents=True, exist_ok=True)
+    cfg.input_videos_dir.mkdir(parents=True, exist_ok=True)
     return cfg

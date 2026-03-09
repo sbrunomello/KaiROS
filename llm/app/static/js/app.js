@@ -144,6 +144,11 @@ async function loadCapabilities() {
   if (!defaultInput.value && modelCapabilities.default_image_model) {
     defaultInput.value = modelCapabilities.default_image_model;
   }
+
+  const videoModelInput = document.getElementById('video-model-input');
+  if (videoModelInput && !videoModelInput.value.trim()) {
+    videoModelInput.value = (document.getElementById('default_video_analysis_model')?.value || "").trim() || 'nvidia/nemotron-nano-12b-v2-vl:free';
+  }
 }
 
 function hydrateImageModelInput() {
@@ -290,22 +295,87 @@ async function generateImage() {
   }
 }
 
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) return '-';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function renderVideoPreview(file) {
+  const holder = document.getElementById('video-file-preview');
+  if (!holder) return;
+  if (!file) {
+    holder.innerHTML = '<p>Nenhum vídeo anexado.</p>';
+    return;
+  }
+  holder.innerHTML = `
+    <p><strong>Nome:</strong> ${file.name}</p>
+    <p><strong>Tamanho:</strong> ${formatBytes(file.size)}</p>
+    <p><strong>MIME:</strong> ${file.type || '-'} </p>
+  `;
+}
+
+async function loadVideoHistory() {
+  try {
+    const data = await fetchJson(apiUrl('/api/history/multimodal'), { headers: usernameHeaders() });
+    const videoItems = data.filter((item) => item.item_type === 'video_analysis');
+    const holder = document.getElementById('video-history');
+    if (!holder) return;
+    holder.innerHTML = videoItems.map((item) => `
+      <div class="history-item">
+        <p><strong>${item.model_name}</strong> - ${item.prompt}</p>
+        <p>${item.response_text || ''}</p>
+        <small>${item.metadata_json || ''}</small>
+      </div>
+    `).join('') || '<p>Nenhum histórico.</p>';
+  } catch (_e) {
+    // histórico opcional
+  }
+}
+
+function copyVideoResult() {
+  const text = document.getElementById('video-result-text')?.textContent || '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => setStatus('video-status', 'Resposta copiada.'));
+}
+
 async function analyzeVideo() {
-  setStatus('video-status', 'Analisando vídeo...');
+  const button = document.getElementById('analyze-video-btn');
   const file = document.getElementById('video-file').files[0];
-  if (!file) { setStatus('video-status', 'Selecione um vídeo.'); return; }
+  const prompt = document.getElementById('video-prompt').value.trim();
+  const model = document.getElementById('video-model-input').value.trim() || 'nvidia/nemotron-nano-12b-v2-vl:free';
+  const reasoningEnabled = document.getElementById('video-reasoning-toggle').checked;
+
+  if (!file) { setStatus('video-status', 'Adicione um vídeo para análise.'); return; }
+  if (!prompt) { setStatus('video-status', 'Digite um prompt de análise.'); return; }
+
   const form = new FormData();
-  form.append('prompt', document.getElementById('video-prompt').value.trim());
-  // Usa exclusivamente o modelo configurado na aba de configurações.
-  const configuredVideoModel = (document.getElementById('default_video_analysis_model').value || '').trim();
-  if (!configuredVideoModel) { setStatus('video-status', 'Defina o "Modelo padrão vídeo análise" na aba Configurações.'); return; }
-  form.append('model', configuredVideoModel);
+  form.append('prompt', prompt);
+  form.append('model', model);
+  form.append('reasoning_enabled', String(reasoningEnabled));
   form.append('video_file', file);
+
+  button.disabled = true;
+  setStatus('video-status', 'Analisando vídeo...');
+
   try {
     const data = await fetchJson(apiUrl('/api/analyze-video'), { method: 'POST', headers: { ...usernameHeaders() }, body: form });
-    document.getElementById('video-result').textContent = data.result;
+    document.getElementById('video-result').innerHTML = `
+      <p id="video-result-text">${escapeHtml(data.result || '')}</p>
+      <p><strong>Modelo:</strong> ${escapeHtml(data.model || model)}</p>
+      <p><strong>Reasoning:</strong> ${data.reasoning_enabled ? 'ativo' : 'desligado'}</p>
+      <button id="copy-video-result-btn" type="button">Copiar resposta</button>
+    `;
+    document.getElementById('copy-video-result-btn')?.addEventListener('click', copyVideoResult);
     setStatus('video-status', 'Análise concluída.');
-  } catch (e) { setStatus('video-status', `Erro: ${e.message}`); }
+    await loadVideoHistory();
+  } catch (e) {
+    setStatus('video-status', `Erro: ${e.message}`);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 document.getElementById('new-chat-btn').onclick = async () => { const res = await fetchJson(apiUrl('/api/chats'), { method: 'POST', headers: { 'Content-Type': 'application/json', ...usernameHeaders() }, body: '{}' }); await loadChats(); await openChat(res.id); };
@@ -321,6 +391,8 @@ document.getElementById('refresh-models-btn').onclick = loadCapabilities;
 document.getElementById('generate-image-btn').onclick = generateImage;
 document.getElementById('image-input-file').onchange = (e) => renderInputPreview(e.target.files[0]);
 document.getElementById('remove-image-btn').onclick = () => { const input = document.getElementById('image-input-file'); input.value = ''; renderInputPreview(null); };
+document.getElementById('video-file').onchange = (e) => renderVideoPreview(e.target.files[0]);
+document.getElementById('remove-video-btn').onclick = () => { const input = document.getElementById('video-file'); input.value = ''; renderVideoPreview(null); };
 document.getElementById('analyze-video-btn').onclick = analyzeVideo;
 
 (function init() {
@@ -331,4 +403,6 @@ document.getElementById('analyze-video-btn').onclick = analyzeVideo;
   loadSettings().then(loadCapabilities);
   loadChats();
   loadImageHistory();
+  loadVideoHistory();
+  renderVideoPreview(null);
 })();

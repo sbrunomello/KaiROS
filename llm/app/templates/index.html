@@ -62,14 +62,28 @@
 <section id="tab-video" class="tab-section panel">
   <h2>Vídeo</h2>
   <h3>Analisar vídeo</h3>
-  <label>Prompt de instrução <textarea id="video-prompt" rows="3">Descreva o vídeo em detalhes.</textarea></label>
-  <label>Arquivo de vídeo <input id="video-file" type="file" accept="video/mp4,video/webm,video/quicktime" /></label>
-  <button id="analyze-video-btn">Analisar</button>
-  <p id="video-status" class="status"></p>
-  <pre id="video-result"></pre>
+  <label>Upload de vídeo
+    <input id="video-file" type="file" accept="video/mp4,video/webm,video/quicktime" />
+  </label>
+  <div id="video-file-preview" class="history-item"></div>
+  <button id="remove-video-btn" type="button">Remover vídeo</button>
 
-  <h3>Gerar vídeo (experimental)</h3>
-  <p>Geração de vídeo ainda não habilitada. Aguardando suporte oficial confirmado no provider/configuração.</p>
+  <label>Prompt de análise
+    <textarea id="video-prompt" rows="4" placeholder="Descreva o que acontece neste vídeo, liste objetos e eventos principais e destaque riscos relevantes."></textarea>
+  </label>
+
+  <label>Modelo
+    <input id="video-model-input" type="text" value="nvidia/nemotron-nano-12b-v2-vl:free" />
+  </label>
+
+  <label><input id="video-reasoning-toggle" type="checkbox" /> Ativar reasoning</label>
+
+  <button id="analyze-video-btn" type="button">Analisar vídeo</button>
+  <p id="video-status" class="status"></p>
+  <div id="video-result" class="history-item"></div>
+
+  <h3>Histórico de análise de vídeo</h3>
+  <div id="video-history"></div>
 </section>
 
 <section id="tab-settings" class="tab-section settings-wrap">

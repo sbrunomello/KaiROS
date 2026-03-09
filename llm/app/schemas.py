@@ -49,7 +49,7 @@ class SettingsIn(BaseModel):
     openrouter_api_key: str = ""
     model_name: str = "openrouter/auto"
     default_image_model: str = "bytedance-seed/seedream-4.5"
-    default_video_analysis_model: str = "google/gemini-2.5-pro"
+    default_video_analysis_model: str = "nvidia/nemotron-nano-12b-v2-vl:free"
     default_video_generation_model: str = ""
     temperature: float = Field(default=0.7, ge=0, le=2)
     system_prompt: str = Field(default="Você é uma assistente útil, objetiva e confiável.", min_length=1, max_length=6000)
@@ -124,3 +124,4 @@ class VideoAnalysisOut(BaseModel):
     model: str
     prompt: str
     result: str
+    reasoning_enabled: bool = False
