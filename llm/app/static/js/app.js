@@ -12,6 +12,71 @@ function usernameHeaders() { return { 'X-Username': getUsername() }; }
 function apiUrl(path, username = getUsername()) { const url = new URL(path.startsWith('/') ? path : `/${path}`, window.location.origin); url.searchParams.set('username', username); return `${url.pathname}${url.search}`; }
 function validateUsername(username) { return /^[a-zA-Z0-9_-]{3,32}$/.test(username); }
 
+function escapeHtml(text) {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function formatInlineMarkdown(line) {
+  let html = escapeHtml(line);
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  return html;
+}
+
+// Renderização básica de Markdown para melhorar legibilidade de respostas do LLM.
+function renderMessageContent(content) {
+  const raw = String(content || '').replace(/\r\n/g, '\n');
+  const codeBlocks = [];
+  const tokenized = raw.replace(/```([\w-]+)?\n([\s\S]*?)```/g, (_match, language, snippet) => {
+    const langClass = language ? ` class="language-${escapeHtml(language)}"` : '';
+    const code = `<pre><code${langClass}>${escapeHtml(snippet.trimEnd())}</code></pre>`;
+    codeBlocks.push(code);
+    return `@@CODE_BLOCK_${codeBlocks.length - 1}@@`;
+  });
+
+  const lines = tokenized.split('\n');
+  const chunks = [];
+  let listBuffer = [];
+
+  const flushList = () => {
+    if (!listBuffer.length) return;
+    chunks.push(`<ul>${listBuffer.map((item) => `<li>${formatInlineMarkdown(item)}</li>`).join('')}</ul>`);
+    listBuffer = [];
+  };
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushList();
+      return;
+    }
+
+    if (trimmed.startsWith('@@CODE_BLOCK_')) {
+      flushList();
+      chunks.push(trimmed);
+      return;
+    }
+
+    const listMatch = trimmed.match(/^[-*]\s+(.*)$/);
+    if (listMatch) {
+      listBuffer.push(listMatch[1]);
+      return;
+    }
+
+    flushList();
+    chunks.push(`<p>${formatInlineMarkdown(trimmed)}</p>`);
+  });
+  flushList();
+
+  return chunks.join('').replace(/@@CODE_BLOCK_(\d+)@@/g, (_full, idx) => codeBlocks[Number(idx)] || '');
+}
+
 function setStatus(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
 
 async function fetchJson(url, options = {}) {
@@ -42,7 +107,14 @@ async function openChat(id, { refreshList = true } = {}) {
   if (refreshList) await loadChats({ shouldAutoOpen: false });
 }
 
-function addMessage(role, content) { const div = document.createElement('div'); div.className = `msg ${role}`; div.textContent = content; document.getElementById('messages').appendChild(div); }
+function addMessage(role, content) {
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = renderMessageContent(content);
+  const messages = document.getElementById('messages');
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
 
 function initTabs() {
   document.querySelectorAll('.tab-btn').forEach((btn) => {
