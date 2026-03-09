@@ -25,16 +25,19 @@ class VisionService:
         self._state = state
         self._servo_service = servo_service
         detector_cfg = cfg["detector"]
-        self._detector = detector or YoloNanoSegDetector(
-            YoloSegConfig(
-                model_path=detector_cfg["model_path"],
-                conf_threshold=detector_cfg["conf_threshold"],
-                iou_threshold=detector_cfg["iou_threshold"],
-                imgsz=detector_cfg["imgsz"],
-                retina_masks=detector_cfg["retina_masks"],
-                device=detector_cfg.get("device"),
+        detector_enabled = detector_cfg.get("enabled", True)
+        self._detector = detector
+        if self._detector is None and detector_enabled:
+            self._detector = YoloNanoSegDetector(
+                YoloSegConfig(
+                    model_path=detector_cfg["model_path"],
+                    conf_threshold=detector_cfg["conf_threshold"],
+                    iou_threshold=detector_cfg["iou_threshold"],
+                    imgsz=detector_cfg["imgsz"],
+                    retina_masks=detector_cfg["retina_masks"],
+                    device=detector_cfg.get("device"),
+                )
             )
-        )
         self._selector = TargetSelector()
         self._tracker = TemporalTracker(
             timeout_ms=cfg["tracking"]["tracking_timeout_ms"],
@@ -45,10 +48,14 @@ class VisionService:
 
     @property
     def model_classes(self):
+        if self._detector is None:
+            return []
         return self._detector.classes
 
     @property
     def recognition_modes(self):
+        if self._detector is None:
+            return ["color"]
         return ["yolo", "color"]
 
     @property
@@ -148,7 +155,12 @@ class VisionService:
             height, width = frame.shape[:2]
             self._frame_count += 1
             settings = self._state.get_runtime_settings_snapshot()
-            self._state.runtime.recognition_mode = settings.recognition_mode
+            recognition_mode = settings.recognition_mode
+            if self._detector is None and recognition_mode != "color":
+                # Em fallback sem detector (ex: preflight falhou para torch),
+                # mantemos o stream da webcam ativo usando rastreio por cor.
+                recognition_mode = "color"
+            self._state.runtime.recognition_mode = recognition_mode
             preprocess_ms = (time.perf_counter() - preprocess_start) * 1000.0
 
             output_frame = frame.copy()
@@ -163,7 +175,7 @@ class VisionService:
             inference_ms = 0.0
             dropped_count = self._state.metrics.snapshot()["dropped_inference_count"]
 
-            if settings.recognition_mode == "color":
+            if recognition_mode == "color":
                 hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
                 mask = build_mask(hsv, settings.target_color)
                 detection = detect_largest_blob(mask, self._cfg["tracking"]["area_min"])
