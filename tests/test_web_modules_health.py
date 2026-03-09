@@ -48,3 +48,21 @@ def test_camera_selection_endpoint_updates_state():
     response = client.post("/api/camera/select", json={"camera_index": 2})
     assert response.status_code == 200
     assert state.get_runtime_snapshot().desired_camera_index == 2
+
+
+def test_dashboard_endpoint_aggregates_system_and_metrics():
+    cfg = {"web": {"stream_sleep_ms": 50}, "servo": {"center_angle": 90}, "detector": {}, "render": {}, "tracking": {}}
+    state = SharedState(jpeg_quality=50, show_mask=True, runtime_settings=RuntimeSettingsStore(VisionRuntimeSettings()))
+    state.set_active_camera_index(1)
+    state.runtime.recognition_mode = "color"
+    app = build_app(cfg, state, DummyServoService(), classes=["person"])
+    client = app.test_client()
+
+    response = client.get("/api/dashboard")
+    data = response.get_json()
+
+    assert response.status_code == 200
+    assert data["ok"] is True
+    assert data["system"]["active_camera_index"] == 1
+    assert data["system"]["recognition_mode"] == "color"
+    assert "frame_fps" in data["metrics"]
