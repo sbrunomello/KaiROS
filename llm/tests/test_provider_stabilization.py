@@ -12,7 +12,7 @@ def _base_settings_payload(**overrides):
         "groq_api_key": "g-key",
         "huggingface_api_key": "hf-key",
         "model_name": "openrouter/auto",
-        "chat_model_name": "llama-3.1-8b-instant",
+        "chat_model_name": "openrouter/auto",
         "default_image_model": "legacy-image",
         "openrouter_default_image_model": "bytedance-seed/seedream-4.5",
         "hf_default_image_model": "black-forest-labs/FLUX.1-schnell",

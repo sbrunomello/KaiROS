@@ -27,7 +27,7 @@ class Settings(Base):
     huggingface_api_key: Mapped[str] = mapped_column(String(255), default="")
     chat_provider: Mapped[str] = mapped_column(String(32), default="groq")
     chat_fallback_provider: Mapped[str] = mapped_column(String(32), default="openrouter")
-    chat_model_name: Mapped[str] = mapped_column(String(255), default="llama-3.1-8b-instant")
+    chat_model_name: Mapped[str] = mapped_column(String(255), default="openrouter/auto")
     speech_provider: Mapped[str] = mapped_column(String(32), default="groq")
     speech_model_name: Mapped[str] = mapped_column(String(255), default="whisper-large-v3-turbo")
     whisper_cpp_binary_path: Mapped[str] = mapped_column(String(255), default="")

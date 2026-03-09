@@ -61,7 +61,8 @@ class SettingsIn(BaseModel):
     huggingface_api_key: str = ""
     chat_provider: str = "groq"
     chat_fallback_provider: str = "openrouter"
-    chat_model_name: str = "llama-3.1-8b-instant"
+    # Mantém o chat configurável por provider sem assumir modelo específico do Groq.
+    chat_model_name: str = "openrouter/auto"
     speech_provider: str = "groq"
     speech_model_name: str = "whisper-large-v3-turbo"
     whisper_cpp_binary_path: str = ""
