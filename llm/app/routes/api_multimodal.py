@@ -42,14 +42,15 @@ def generate_image(payload: ImageGenerationIn, username: str = Depends(get_usern
         raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
 
     caps = ModelCatalogService().get_capabilities()
-    # A geração de imagem deve usar exclusivamente o modelo definido nas configurações.
-    selected_model = (settings.default_image_model or "").strip()
-    if not selected_model:
-        raise HTTPException(status_code=400, detail="Defina um modelo padrão de imagem nas configurações.")
+    image_models = [m["id"] for m in caps["image_models"] if m.get("id")]
+    if not image_models:
+        raise HTTPException(status_code=400, detail="Nenhum modelo com suporte a geração de imagem foi encontrado.")
 
-    model_ids = {m["id"] for m in caps["image_models"]}
-    if selected_model not in model_ids:
-        raise HTTPException(status_code=400, detail="O modelo selecionado não suporta geração de imagem.")
+    # Mantemos a preferência pela configuração do usuário, mas recuperamos automaticamente
+    # para um modelo válido quando a configuração está obsoleta ou inválida.
+    selected_model = (settings.default_image_model or "").strip()
+    if selected_model not in image_models:
+        selected_model = (caps.get("default_image_model") or "").strip() or image_models[0]
 
     try:
         result = ImageGenerationService().generate(settings=settings, model=selected_model, prompt=payload.prompt)
