@@ -93,7 +93,7 @@ def apply_overrides(cfg: dict, args):
 def run_service(cfg: dict):
     runtime_settings = RuntimeSettingsStore(
         VisionRuntimeSettings(
-            recognition_mode="yolo",
+            recognition_mode="yolo" if cfg["detector"].get("enabled", True) else "color",
             target_class=cfg["detector"]["target_class_default"],
             target_color=cfg.get("color_tracking", {}).get("target_color_default", "blue"),
             infer_every_n_frames=cfg["detector"]["infer_every_n_frames_default"],
@@ -120,20 +120,14 @@ def run_service(cfg: dict):
         min_angle_step=cfg["servo"]["min_angle_step"],
     )
     servo_service = ServoService(servo_backend)
-    vision_service = None
-    model_classes = []
-    recognition_modes = ["yolo", "color"]
-    color_presets = ["blue", "green", "yellow", "red"]
-    if cfg["detector"].get("enabled", True):
-        vision_service = VisionService(cfg, state, servo_service)
-        model_classes = vision_service.model_classes
-        recognition_modes = vision_service.recognition_modes
-        color_presets = vision_service.color_presets
-        tracking_thread = threading.Thread(target=vision_service.run, daemon=True)
-        tracking_thread.start()
-    else:
-        state.set_vision_running(False)
-        state.set_vision_error("detector_disabled")
+    # Sempre iniciamos o serviço de visão para manter o stream da webcam ativo,
+    # mesmo quando o detector YOLO estiver desabilitado (fallback por cor).
+    vision_service = VisionService(cfg, state, servo_service)
+    model_classes = vision_service.model_classes
+    recognition_modes = vision_service.recognition_modes
+    color_presets = vision_service.color_presets
+    tracking_thread = threading.Thread(target=vision_service.run, daemon=True)
+    tracking_thread.start()
 
     app = build_app(
         cfg,
