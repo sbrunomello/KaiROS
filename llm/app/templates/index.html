@@ -21,6 +21,10 @@
       <ul id="chat-list"></ul>
     </aside>
     <main class="chat-main">
+      <div class="chat-main-header">
+        <h2>Assistente KaiROS</h2>
+        <p>Converse de forma natural com respostas formatadas e legíveis.</p>
+      </div>
       <div id="messages" class="messages"></div>
       <form id="chat-form" class="chat-input">
         <textarea id="message-input" placeholder="Digite sua mensagem..." required></textarea>
@@ -34,7 +38,6 @@
 <section id="tab-image" class="tab-section panel">
   <h2>Geração de imagem</h2>
   <label>Prompt <textarea id="image-prompt" rows="4"></textarea></label>
-  <p class="hint">O modelo utilizado é o definido em <strong>Configurações → Modelo padrão de imagem</strong>.</p>
   <div id="image-model-catalog" class="image-model-catalog"></div>
   <button id="generate-image-btn">Gerar</button>
   <p id="image-status" class="status"></p>
@@ -44,7 +47,6 @@
 <section id="tab-video" class="tab-section panel">
   <h2>Vídeo</h2>
   <h3>Analisar vídeo</h3>
-  <p class="hint">O modelo utilizado é o definido em <strong>Configurações → Modelo padrão vídeo análise</strong>.</p>
   <label>Prompt de instrução <textarea id="video-prompt" rows="3">Descreva o vídeo em detalhes.</textarea></label>
   <label>Arquivo de vídeo <input id="video-file" type="file" accept="video/mp4,video/webm,video/quicktime" /></label>
   <button id="analyze-video-btn">Analisar</button>
