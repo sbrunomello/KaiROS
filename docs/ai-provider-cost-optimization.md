@@ -286,3 +286,11 @@ Implementado parcialmente nesta iteração:
 - Migração progressiva de text->image para provider dedicado (`hf`) com compatibilidade OpenRouter.
 - `image->image` sob feature flag (`image_edit_enabled`).
 - `video->text` com modo `pipeline` opcional, preservando modo `legacy`.
+
+## Atualização de implementação
+
+- Chat multi-provider ativo: `groq`, `openrouter`, `cloudflare`, `together`, `deepinfra` com fallback primário/secundário.
+- Vision multi-provider ativo: `groq`, `openrouter`, `cloudflare`, `together`, `deepinfra` com fallback opcional.
+- Speech: `groq` com fallback local `whisper.cpp` quando configurado.
+- Image generation: `openrouter`, `hf`, `cloudflare`, `together`, `deepinfra` com fallback opcional.
+- Image edit segue conservador: `openrouter` legado e `hf`.

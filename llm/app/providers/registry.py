@@ -3,16 +3,25 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
+from .chat.cloudflare_chat_provider import CloudflareChatProvider
+from .chat.deepinfra_chat_provider import DeepInfraChatProvider
 from .chat.groq_chat_provider import GroqChatProvider
 from .chat.openrouter_chat_provider import OpenRouterChatProvider
+from .chat.together_chat_provider import TogetherChatProvider
+from .image.cloudflare_image_gen_provider import CloudflareImageGenProvider
+from .image.deepinfra_image_gen_provider import DeepInfraImageGenProvider
 from .image.hf_image_edit_provider import HFImageEditProvider
 from .image.hf_image_gen_provider import HFImageGenProvider
 from .image.openrouter_image_edit_provider import OpenRouterImageEditProvider
 from .image.openrouter_image_gen_provider import OpenRouterImageGenProvider
+from .image.together_image_gen_provider import TogetherImageGenProvider
 from .speech.groq_speech_provider import GroqSpeechProvider
 from .speech.local_whisper_provider import LocalWhisperProvider
+from .vision.cloudflare_vision_provider import CloudflareVisionProvider
+from .vision.deepinfra_vision_provider import DeepInfraVisionProvider
 from .vision.groq_vision_provider import GroqVisionProvider
 from .vision.openrouter_vision_provider import OpenRouterVisionProvider
+from .vision.together_vision_provider import TogetherVisionProvider
 
 
 class ProviderRegistry:
@@ -22,15 +31,27 @@ class ProviderRegistry:
         self.chat_providers = {
             "groq": GroqChatProvider(),
             "openrouter": OpenRouterChatProvider(),
+            "cloudflare": CloudflareChatProvider(),
+            "together": TogetherChatProvider(),
+            "deepinfra": DeepInfraChatProvider(),
         }
         self.speech_providers = {
             "groq": GroqSpeechProvider(),
             "local": LocalWhisperProvider(),
         }
-        self.vision_providers = {"groq": GroqVisionProvider(), "openrouter": OpenRouterVisionProvider()}
+        self.vision_providers = {
+            "groq": GroqVisionProvider(),
+            "openrouter": OpenRouterVisionProvider(),
+            "cloudflare": CloudflareVisionProvider(),
+            "together": TogetherVisionProvider(),
+            "deepinfra": DeepInfraVisionProvider(),
+        }
         self.image_gen_providers = {
             "hf": HFImageGenProvider(),
             "openrouter": OpenRouterImageGenProvider(),
+            "cloudflare": CloudflareImageGenProvider(),
+            "together": TogetherImageGenProvider(),
+            "deepinfra": DeepInfraImageGenProvider(),
         }
         self.image_edit_providers = {
             "hf": HFImageEditProvider(),
@@ -64,12 +85,24 @@ class ProviderRegistry:
             raise ValueError(f"Vision provider não suportado: {name}")
         return provider
 
+    def resolve_vision_fallback(self, settings: Any):
+        fallback = (getattr(settings, "vision_fallback_provider", "") or "").lower()
+        if not fallback:
+            return None
+        return self.vision_providers.get(fallback)
+
     def resolve_image_gen(self, settings: Any):
         name = (getattr(settings, "image_gen_provider", "openrouter") or "openrouter").lower()
         provider = self.image_gen_providers.get(name)
         if not provider:
             raise ValueError(f"Image gen provider não suportado: {name}")
         return provider
+
+    def resolve_image_gen_fallback(self, settings: Any):
+        fallback = (getattr(settings, "image_gen_fallback_provider", "") or "").lower()
+        if not fallback:
+            return None
+        return self.image_gen_providers.get(fallback)
 
     def resolve_image_edit(self, settings: Any):
         name = (getattr(settings, "image_edit_provider", "openrouter") or "openrouter").lower()

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import logging
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,8 @@ from ..providers.registry import ProviderRegistry
 from .asset_storage_service import AssetStorageService
 from .image_input_encoder import ImageInputEncoder
 from .openrouter_client import OpenRouterClient
+
+logger = logging.getLogger(__name__)
 
 
 class ImageGenerationError(ValueError):
@@ -123,10 +126,26 @@ class ImageGenerationService:
                 finally:
                     tmp_path.unlink(missing_ok=True)
             else:
-                try:
-                    result = self.registry.resolve_image_gen(settings).generate(prompt, options)
-                except ValueError as exc:
-                    raise ImageGenerationError(str(exc)) from exc
+                primary_provider = (getattr(settings, "image_gen_provider", "openrouter") or "openrouter").lower()
+                fallback_provider = (getattr(settings, "image_gen_fallback_provider", "") or "").lower()
+                providers = [(primary_provider, self.registry.resolve_image_gen(settings))]
+                fallback = self.registry.resolve_image_gen_fallback(settings)
+                if fallback and fallback_provider != primary_provider:
+                    providers.append((fallback_provider, fallback))
+
+                last_error = None
+                result = None
+                for provider_name, provider in providers:
+                    try:
+                        result = provider.generate(prompt, options)
+                        if provider_name != primary_provider:
+                            logger.warning("image_gen_fallback_triggered primary=%s fallback=%s", primary_provider, provider_name)
+                        break
+                    except Exception as exc:  # noqa: BLE001
+                        last_error = str(exc)
+                        logger.warning("image_gen_provider_error provider=%s error=%s", provider_name, last_error)
+                if not result:
+                    raise ImageGenerationError(last_error or "Falha desconhecida na geração de imagem")
             mime_type, image_bytes, text = result.mime_type, result.image_bytes, result.text
 
         saved_asset = self.generated_storage.save_generated_image(image_bytes=image_bytes, mime_type=mime_type)

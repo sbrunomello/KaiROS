@@ -59,6 +59,10 @@ class SettingsIn(BaseModel):
     # Legacy OpenRouter fields (deprecated, kept for compatibility)
     groq_api_key: str = ""
     huggingface_api_key: str = ""
+    cloudflare_api_token: str = ""
+    cloudflare_account_id: str = ""
+    together_api_key: str = ""
+    deepinfra_api_key: str = ""
     chat_provider: str = "groq"
     chat_fallback_provider: str = "openrouter"
     # Mantém o chat configurável por provider sem assumir modelo específico do Groq.
@@ -68,9 +72,12 @@ class SettingsIn(BaseModel):
     whisper_cpp_binary_path: str = ""
     whisper_cpp_model_path: str = ""
     vision_provider: str = "groq"
+    vision_fallback_provider: str = ""
     vision_model_name: str = "llama-3.2-11b-vision-preview"
     image_gen_provider: str = "openrouter"
+    image_gen_fallback_provider: str = ""
     image_edit_provider: str = "openrouter"
+    image_edit_fallback_provider: str = ""
     image_edit_enabled: bool = False
     image_edit_model_name: str = ""
     video_analysis_mode: str = "legacy"
@@ -79,6 +86,15 @@ class SettingsIn(BaseModel):
     ffmpeg_binary_path: str = "ffmpeg"
     openrouter_default_image_model: str = "bytedance-seed/seedream-4.5"
     hf_default_image_model: str = "black-forest-labs/FLUX.1-schnell"
+    cloudflare_default_chat_model: str = "@cf/meta/llama-3.1-8b-instruct"
+    cloudflare_default_vision_model: str = "@cf/llava-hf/llava-1.5-7b-hf"
+    cloudflare_default_image_model: str = "@cf/stabilityai/stable-diffusion-xl-base-1.0"
+    together_default_chat_model: str = "meta-llama/Llama-3.1-8B-Instruct-Turbo"
+    together_default_vision_model: str = "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo"
+    together_default_image_model: str = "black-forest-labs/FLUX.1-schnell"
+    deepinfra_default_chat_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    deepinfra_default_vision_model: str = "meta-llama/Llama-3.2-11B-Vision-Instruct"
+    deepinfra_default_image_model: str = "black-forest-labs/FLUX.1-schnell"
     hf_image_edit_endpoint: str = ""
     request_timeout_seconds: int = Field(default=25, ge=5, le=300)
     max_video_upload_mb: int = Field(default=20, ge=1, le=200)
