@@ -79,6 +79,7 @@ class SettingsIn(BaseModel):
     ffmpeg_binary_path: str = "ffmpeg"
     openrouter_default_image_model: str = "bytedance-seed/seedream-4.5"
     hf_default_image_model: str = "black-forest-labs/FLUX.1-schnell"
+    hf_image_edit_endpoint: str = ""
     request_timeout_seconds: int = Field(default=25, ge=5, le=300)
     max_video_upload_mb: int = Field(default=20, ge=1, le=200)
     persist_multimodal_history: bool = True

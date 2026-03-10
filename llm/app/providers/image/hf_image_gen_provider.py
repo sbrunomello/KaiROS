@@ -11,6 +11,13 @@ class HFImageGenProvider:
     def __init__(self, base_url: str = "https://router.huggingface.co/hf-inference/models"):
         self.base_url = base_url.rstrip("/")
 
+    def _build_endpoint(self, model_or_url: str) -> str:
+        """Aceita id de modelo (legacy) ou URL completa do provider HF Router."""
+        target = (model_or_url or "").strip()
+        if target.startswith(("http://", "https://")):
+            return target
+        return f"{self.base_url}/{target}"
+
     def generate(self, prompt: str, options: dict) -> ImageResult:
         api_key = options.get("huggingface_api_key", "")
         model = options.get("hf_default_image_model") or options.get("default_image_model") or "black-forest-labs/FLUX.1-schnell"
@@ -21,7 +28,8 @@ class HFImageGenProvider:
         payload = {"inputs": prompt}
         with httpx.Client(timeout=options.get("request_timeout_seconds", 60)) as client:
             try:
-                response = client.post(f"{self.base_url}/{model}", headers=headers, json=payload)
+                endpoint = self._build_endpoint(model)
+                response = client.post(endpoint, headers=headers, json=payload)
                 response.raise_for_status()
             except httpx.TimeoutException as exc:
                 raise ValueError("Timeout ao chamar Hugging Face Inference API para gerar imagem") from exc
