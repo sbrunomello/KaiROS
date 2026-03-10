@@ -76,10 +76,15 @@ async def generate_image(request: Request, username: str = Depends(get_username)
         payload = ImageGenerationIn(**body)
 
     image_provider_for_mode = (settings.image_edit_provider if payload.mode == "image_to_image" else settings.image_gen_provider or "openrouter").lower()
-    if image_provider_for_mode == "openrouter" and not settings.openrouter_api_key:
-        raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
-    if image_provider_for_mode == "hf" and not settings.huggingface_api_key:
-        raise HTTPException(status_code=400, detail="Configure a Hugging Face API key nas configurações")
+    required_keys = {
+        "openrouter": bool(settings.openrouter_api_key),
+        "hf": bool(settings.huggingface_api_key),
+        "cloudflare": bool(settings.cloudflare_api_token and settings.cloudflare_account_id),
+        "together": bool(settings.together_api_key),
+        "deepinfra": bool(settings.deepinfra_api_key),
+    }
+    if image_provider_for_mode in required_keys and not required_keys[image_provider_for_mode]:
+        raise HTTPException(status_code=400, detail=f"Configure credenciais para provider {image_provider_for_mode} nas configurações")
 
     requested_model = (payload.model or "").strip()
     image_provider = (settings.image_edit_provider if payload.mode == "image_to_image" else settings.image_gen_provider or "openrouter").lower()
@@ -257,10 +262,15 @@ async def analyze_image(
 ):
     settings = SettingsService(db).get()
     vision_provider = (settings.vision_provider or "groq").lower()
-    if vision_provider == "groq" and not settings.groq_api_key:
-        raise HTTPException(status_code=400, detail="Configure a Groq API key nas configurações")
-    if vision_provider == "openrouter" and not settings.openrouter_api_key:
-        raise HTTPException(status_code=400, detail="Configure a OpenRouter API key nas configurações")
+    required_vision_keys = {
+        "groq": bool(settings.groq_api_key),
+        "openrouter": bool(settings.openrouter_api_key),
+        "cloudflare": bool(settings.cloudflare_api_token and settings.cloudflare_account_id),
+        "together": bool(settings.together_api_key),
+        "deepinfra": bool(settings.deepinfra_api_key),
+    }
+    if vision_provider in required_vision_keys and not required_vision_keys[vision_provider]:
+        raise HTTPException(status_code=400, detail=f"Configure credenciais para provider {vision_provider} nas configurações")
     if not image_file:
         raise HTTPException(status_code=400, detail="Adicione uma imagem para análise.")
 
@@ -281,8 +291,28 @@ async def analyze_image(
     )
 
     try:
-        provider = ProviderRegistry().resolve_vision(settings)
-        vision = provider.describe(str(persisted["file_path"]), prompt, settings.__dict__.copy())
+        registry = ProviderRegistry()
+        primary_name = (settings.vision_provider or "groq").lower()
+        providers = [(primary_name, registry.resolve_vision(settings))]
+        fallback_name = (settings.vision_fallback_provider or "").lower()
+        fallback = registry.resolve_vision_fallback(settings)
+        if fallback and fallback_name != primary_name:
+            providers.append((fallback_name, fallback))
+
+        vision = None
+        last_error = None
+        for provider_name, provider in providers:
+            try:
+                vision = provider.describe(str(persisted["file_path"]), prompt, settings.__dict__.copy())
+                if provider_name != primary_name:
+                    logger.warning("vision_fallback_triggered primary=%s fallback=%s", primary_name, provider_name)
+                break
+            except Exception as exc:  # noqa: BLE001
+                last_error = str(exc)
+                logger.warning("vision_provider_error provider=%s error=%s", provider_name, last_error)
+
+        if not vision:
+            raise ValueError(last_error or "Falha desconhecida no provider de vision")
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Falha no provider de vision: {exc}") from exc
 

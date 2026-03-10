@@ -10,6 +10,7 @@ from typing import Any
 
 from ..models import Settings
 from ..providers.registry import ProviderRegistry
+from .llm_service import ResilientLLMService
 from .openrouter_client import OpenRouterClient
 from .speech_service import SpeechService
 from .video_input_encoder import VideoInputEncoder
@@ -145,11 +146,24 @@ class VideoAnalysisService:
                 try:
                     frames = self.frame_sampler.sample(str(video_path), settings.video_frame_sample_seconds, settings.ffmpeg_binary_path)
                     frame_notes = []
-                    vision_provider = self.registry.resolve_vision(settings)
+                    primary_name = (settings.vision_provider or "groq").lower()
+                    providers = [(primary_name, self.registry.resolve_vision(settings))]
+                    fallback_name = (settings.vision_fallback_provider or "").lower()
+                    fallback = self.registry.resolve_vision_fallback(settings)
+                    if fallback and fallback_name != primary_name:
+                        providers.append((fallback_name, fallback))
+
                     for frame in frames[:5]:
-                        vision = vision_provider.describe(frame, "Descreva pontos importantes do frame.", settings.__dict__.copy())
-                        if vision.text:
-                            frame_notes.append(vision.text)
+                        for provider_name, vision_provider in providers:
+                            try:
+                                vision = vision_provider.describe(frame, "Descreva pontos importantes do frame.", settings.__dict__.copy())
+                                if vision.text:
+                                    frame_notes.append(vision.text)
+                                if provider_name != primary_name:
+                                    logger.warning("video_pipeline_vision_fallback_triggered primary=%s fallback=%s", primary_name, provider_name)
+                                break
+                            except Exception as vision_exc:  # noqa: BLE001
+                                logger.warning("video_pipeline_frame_vision_error provider=%s error=%s", provider_name, str(vision_exc))
                     visual_context = "\n".join(frame_notes).strip()
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("video_pipeline_vision_failed error=%s", str(exc))
@@ -158,8 +172,10 @@ class VideoAnalysisService:
             if visual_context:
                 final_prompt += f"\n\nContexto visual:\n{visual_context}"
             messages = [{"role": "user", "content": final_prompt}]
-            chat = self.registry.resolve_chat(settings).generate(messages, settings.__dict__.copy())
-            return VideoAnalysisResult(text=chat.content, model=chat.model_used, reasoning_details={"mode": "pipeline"})
+            chat_result = ResilientLLMService(self.registry).generate(messages, settings)
+            if chat_result.status != "ok":
+                raise ValueError(chat_result.error_message or "Falha no chat da análise de vídeo")
+            return VideoAnalysisResult(text=chat_result.content, model=chat_result.model_used, reasoning_details={"mode": "pipeline"})
         finally:
             if audio_path:
                 Path(audio_path).unlink(missing_ok=True)

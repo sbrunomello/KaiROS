@@ -6,95 +6,96 @@
   <a href="/">← Voltar</a>
   <form id="settings-form">
     <fieldset class="settings-section">
-      <legend>Providers</legend>
-      <label>Chat provider
-        <select id="chat_provider">
-          <option value="groq">groq</option>
-          <option value="openrouter">openrouter</option>
-        </select>
-      </label>
-      <label>Chat fallback provider
-        <select id="chat_fallback_provider">
-          <option value="">(nenhum)</option>
-          <option value="groq">groq</option>
-          <option value="openrouter">openrouter</option>
-        </select>
-      </label>
-      <label>Speech provider
-        <select id="speech_provider">
-          <option value="groq">groq</option>
-          <option value="local">local</option>
-        </select>
-      </label>
-      <label>Vision provider
-        <select id="vision_provider">
-          <option value="groq">groq</option>
-          <option value="openrouter">openrouter</option>
-        </select>
-      </label>
-      <label>Image generation provider
-        <select id="image_gen_provider">
-          <option value="openrouter">openrouter</option>
-          <option value="hf">hf</option>
-        </select>
-      </label>
-      <label>Image edit provider
-        <select id="image_edit_provider">
-          <option value="openrouter">openrouter</option>
-          <option value="hf">hf</option>
-        </select>
-      </label>
-      <label>Video analysis mode
-        <select id="video_analysis_mode">
-          <option value="legacy">legacy</option>
-          <option value="pipeline">pipeline</option>
-        </select>
-      </label>
-    </fieldset>
-
-    <fieldset class="settings-section">
       <legend>API Keys</legend>
       <label>OpenRouter API Key <input type="password" id="openrouter_api_key" /></label>
       <label>Groq API Key <input type="password" id="groq_api_key" /></label>
-      <label>HuggingFace API Key <input type="password" id="huggingface_api_key" /></label>
+      <label>Hugging Face API Key <input type="password" id="huggingface_api_key" /></label>
+      <label>Cloudflare API Token <input type="password" id="cloudflare_api_token" /></label>
+      <label>Cloudflare Account ID <input type="password" id="cloudflare_account_id" /></label>
+      <label>Together API Key <input type="password" id="together_api_key" /></label>
+      <label>DeepInfra API Key <input type="password" id="deepinfra_api_key" /></label>
+    </fieldset>
+
+    <fieldset class="settings-section">
+      <legend>Providers</legend>
+      <label>Chat Provider
+        <select id="chat_provider"><option>groq</option><option>openrouter</option><option>cloudflare</option><option>together</option><option>deepinfra</option></select>
+      </label>
+      <label>Chat Fallback Provider
+        <select id="chat_fallback_provider"><option value="">(nenhum)</option><option>groq</option><option>openrouter</option><option>cloudflare</option><option>together</option><option>deepinfra</option></select>
+      </label>
+      <label>Speech Provider
+        <select id="speech_provider"><option>groq</option><option>local</option></select>
+      </label>
+      <label>Vision Provider
+        <select id="vision_provider"><option>groq</option><option>openrouter</option><option>cloudflare</option><option>together</option><option>deepinfra</option></select>
+      </label>
+      <label>Vision Fallback Provider
+        <select id="vision_fallback_provider"><option value="">(nenhum)</option><option>groq</option><option>openrouter</option><option>cloudflare</option><option>together</option><option>deepinfra</option></select>
+      </label>
+      <label>Image Generation Provider
+        <select id="image_gen_provider"><option>openrouter</option><option>hf</option><option>cloudflare</option><option>together</option><option>deepinfra</option></select>
+      </label>
+      <label>Image Generation Fallback Provider
+        <select id="image_gen_fallback_provider"><option value="">(nenhum)</option><option>openrouter</option><option>hf</option><option>cloudflare</option><option>together</option><option>deepinfra</option></select>
+      </label>
+      <label>Image Edit Provider
+        <select id="image_edit_provider"><option>openrouter</option><option>hf</option></select>
+      </label>
+      <label>Image Edit Fallback Provider
+        <select id="image_edit_fallback_provider"><option value="">(nenhum)</option><option>openrouter</option><option>hf</option></select>
+      </label>
+      <label>Video Analysis Mode
+        <select id="video_analysis_mode"><option>legacy</option><option>pipeline</option></select>
+      </label>
     </fieldset>
 
     <fieldset class="settings-section">
       <legend>Modelos</legend>
+      <label>Chat Model Name <input type="text" id="chat_model_name" /></label>
+      <label>Vision Model Name <input type="text" id="vision_model_name" /></label>
+      <label>Speech Model Name <input type="text" id="speech_model_name" /></label>
+      <label>OpenRouter Default Image Model <input type="text" id="openrouter_default_image_model" /></label>
+      <label>HF Default Image Model <input type="text" id="hf_default_image_model" /></label>
+      <label>Cloudflare Default Chat Model <input type="text" id="cloudflare_default_chat_model" /></label>
+      <label>Cloudflare Default Vision Model <input type="text" id="cloudflare_default_vision_model" /></label>
+      <label>Cloudflare Default Image Model <input type="text" id="cloudflare_default_image_model" /></label>
+      <label>Together Default Chat Model <input type="text" id="together_default_chat_model" /></label>
+      <label>Together Default Vision Model <input type="text" id="together_default_vision_model" /></label>
+      <label>Together Default Image Model <input type="text" id="together_default_image_model" /></label>
+      <label>DeepInfra Default Chat Model <input type="text" id="deepinfra_default_chat_model" /></label>
+      <label>DeepInfra Default Vision Model <input type="text" id="deepinfra_default_vision_model" /></label>
+      <label>DeepInfra Default Image Model <input type="text" id="deepinfra_default_image_model" /></label>
+      <label>Image Edit Model Name <input type="text" id="image_edit_model_name" /></label>
+      <label>Default Video Analysis Model <input type="text" id="default_video_analysis_model" /></label>
+      <label>Default Video Generation Model <input type="text" id="default_video_generation_model" /></label>
       <label>Modelo chat (legado) <input type="text" id="model_name" /></label>
-      <label>Modelo chat (provider-aware) <input type="text" id="chat_model_name" /></label>
-      <label>Modelo speech <input type="text" id="speech_model_name" /></label>
-      <label>Modelo vision <input type="text" id="vision_model_name" /></label>
       <label>Modelo imagem padrão (legado) <input type="text" id="default_image_model" /></label>
-      <label>Modelo imagem padrão OpenRouter <input type="text" id="openrouter_default_image_model" /></label>
-      <label>Modelo imagem padrão HuggingFace <input type="text" id="hf_default_image_model" /></label>
-      <label>Endpoint image edit HuggingFace (opcional) <input type="text" id="hf_image_edit_endpoint" placeholder="https://router.huggingface.co/fal-ai/..." /></label>
-      <label>Modelo image edit <input type="text" id="image_edit_model_name" /></label>
-      <label>Modelo vídeo análise <input type="text" id="default_video_analysis_model" /></label>
-      <label>Modelo vídeo geração <input type="text" id="default_video_generation_model" /></label>
+      <label>Endpoint image edit HuggingFace (opcional) <input type="text" id="hf_image_edit_endpoint" /></label>
     </fieldset>
 
     <fieldset class="settings-section">
       <legend>Pipeline local / ferramentas</legend>
-      <label>whisper.cpp binário <input type="text" id="whisper_cpp_binary_path" /></label>
-      <label>whisper.cpp modelo <input type="text" id="whisper_cpp_model_path" /></label>
-      <label>ffmpeg binário <input type="text" id="ffmpeg_binary_path" /></label>
-      <label class="checkbox-field"><input type="checkbox" id="image_edit_enabled" /> Habilitar image edit</label>
-      <label class="checkbox-field"><input type="checkbox" id="video_enable_vision" /> Habilitar visão no pipeline de vídeo</label>
-      <label>Frame sample (segundos) <input type="number" id="video_frame_sample_seconds" min="1" max="60" /></label>
+      <label>whisper_cpp_binary_path <input type="text" id="whisper_cpp_binary_path" /></label>
+      <label>whisper_cpp_model_path <input type="text" id="whisper_cpp_model_path" /></label>
+      <label>ffmpeg_binary_path <input type="text" id="ffmpeg_binary_path" /></label>
+      <label class="checkbox-field"><input type="checkbox" id="video_enable_vision" /> video_enable_vision</label>
+      <label>video_frame_sample_seconds <input type="number" id="video_frame_sample_seconds" min="1" max="60" /></label>
+      <label class="checkbox-field"><input type="checkbox" id="image_edit_enabled" /> image_edit_enabled</label>
     </fieldset>
 
     <fieldset class="settings-section">
-      <legend>Configurações gerais</legend>
-      <label>Temperatura <input type="number" step="0.1" min="0" max="2" id="temperature" /></label>
-      <label>System prompt <textarea id="system_prompt" rows="6"></textarea></label>
-      <label>Nome assistente <input type="text" id="assistant_name" /></label>
-      <label>HTTP-Referer opcional <input type="text" id="http_referer" /></label>
-      <label>X-Title opcional <input type="text" id="x_title" /></label>
-      <label>Timeout (s) <input type="number" id="request_timeout_seconds" min="5" max="300" /></label>
-      <label>Limite upload vídeo MB <input type="number" id="max_video_upload_mb" min="1" max="200" /></label>
-      <label>Persistir histórico multimodal <select id="persist_multimodal_history"><option value="true">Sim</option><option value="false">Não</option></select></label>
+      <legend>Gerais</legend>
+      <label>temperature <input type="number" step="0.1" min="0" max="2" id="temperature" /></label>
+      <label>system_prompt <textarea id="system_prompt" rows="5"></textarea></label>
+      <label>assistant_name <input type="text" id="assistant_name" /></label>
+      <label>request_timeout_seconds <input type="number" id="request_timeout_seconds" min="5" max="300" /></label>
+      <label>max_video_upload_mb <input type="number" id="max_video_upload_mb" min="1" max="200" /></label>
+      <label>persist_multimodal_history <select id="persist_multimodal_history"><option value="true">Sim</option><option value="false">Não</option></select></label>
+      <label>http_referer <input type="text" id="http_referer" /></label>
+      <label>x_title <input type="text" id="x_title" /></label>
     </fieldset>
+
     <button type="submit">Salvar</button>
   </form>
   <p id="settings-status"></p>
