@@ -54,6 +54,7 @@ def _ensure_settings_columns() -> None:
         "ffmpeg_binary_path": "VARCHAR(255) DEFAULT 'ffmpeg'",
         "openrouter_default_image_model": "VARCHAR(255) DEFAULT 'bytedance-seed/seedream-4.5'",
         "hf_default_image_model": "VARCHAR(255) DEFAULT 'black-forest-labs/FLUX.1-schnell'",
+        "hf_image_edit_endpoint": "VARCHAR(512) DEFAULT ''",
     }
     with engine.begin() as conn:
         columns = conn.execute(text("PRAGMA table_info(settings)")).fetchall()

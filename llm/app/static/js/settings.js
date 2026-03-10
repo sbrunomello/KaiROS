@@ -71,6 +71,7 @@ document.getElementById('settings-form').onsubmit = async (e) => {
     default_image_model: getFieldValue('default_image_model') ?? 'bytedance-seed/seedream-4.5',
     openrouter_default_image_model: getFieldValue('openrouter_default_image_model') ?? 'bytedance-seed/seedream-4.5',
     hf_default_image_model: getFieldValue('hf_default_image_model') ?? 'black-forest-labs/FLUX.1-schnell',
+    hf_image_edit_endpoint: getFieldValue('hf_image_edit_endpoint') ?? '',
     image_edit_model_name: getFieldValue('image_edit_model_name') ?? '',
     default_video_analysis_model: getFieldValue('default_video_analysis_model') ?? 'nvidia/nemotron-nano-12b-v2-vl:free',
     default_video_generation_model: getFieldValue('default_video_generation_model') ?? '',
